@@ -86,76 +86,6 @@ unsigned long* get_time_deltas_in_milliseconds(struct keystroke keystrokes[], si
 void keystroke_function(void* arg) {
 	SharedData* data = (SharedData*)arg;
 
-	size_t keystrokes_length = 0;
-	size_t keystrokes_capacity = 64;
-	struct keystroke keystrokes[keystrokes_capacity];
-
-	unsigned char c;
-	unsigned char bytes_read = 0;
-
-	// Prompt
-	printf("rawInputTool$ "); 
-	fflush(stdout);
-
-	// Begin collecting raw data, no echoing, non-canonical mode
-	disable_buffering_and_echoing();
-	while(1) {
-		pthread_mutex_lock(&data->lock);
-		if(!data->flag) {
-			pthread_mutex_unlock(&data->lock);
-			break; // Exit the loop if the flag is false
-		}
-		pthread_mutex_unlock(&data->lock);
-
-
-		bytes_read = read(STDIN_FILENO, &c, 1);
-		if(bytes_read <= 0) continue;
-		
-		// Capture character stroke and timestamp
-		if(keystrokes_length < keystrokes_capacity) {
-			keystrokes[keystrokes_length].c = c;
-			clock_gettime( CLOCK_MONOTONIC, &(keystrokes[keystrokes_length].timestamp) );
-			keystrokes_length++;
-		}
-
-		// echo back what was written
-		switch(c) {
-			case BACKSPACE:
-				printf("\b \b");
-				fflush(stdout);
-				break;
-
-			case ENTER:
-				break;
-
-			default:
-				printf("%c", c);
-				fflush(stdout);
-				break;
-		}
-
-	}
-
-	// Print the numeric values of keys pressed
-	fflush(stdout);
-	enable_buffering_and_echoing();
-	printf("\nNumeric codes entered:\n");
-	printf("\n%d", (int) keystrokes[0].c);
-	for(size_t i = 1; i < keystrokes_length ; i++) 
-		printf(", %d", (int) keystrokes[i].c);
-
-	printf("\n");
-	unsigned long *time_deltas = get_time_deltas_in_milliseconds(keystrokes, keystrokes_length);
-	if(time_deltas == NULL) {
-		fprintf(stderr, "Could not get time deltas.\n"); 
-	}
-
-	printf("\nTime deltas:\n");
-	printf("%ld", time_deltas[0]);
-	for(size_t i = 1; i < keystrokes_length - 1; i++) 
-		printf(", %ld", time_deltas[i]);
-
-	printf("\n");
 }
 
 int main(int argc, char **argv) {
@@ -191,33 +121,93 @@ int main(int argc, char **argv) {
 		free(help_fh_contents);
 		return 0;
 	}
-
+	
+	// Parse command line arguments
+	
 	int sec = atoi(argv[2]);
 	printf("The second count is: %d\n", sec);
-	// Initialize shared data
+
+	// Initialize shared data for timer fucntion
 	SharedData shared_data = {
 		.flag = true,
 		.seconds = atoi(argv[2])
 	};
 	pthread_mutex_init(&shared_data.lock, NULL);
+	
+	size_t keystrokes_length = 0;
+	size_t keystrokes_capacity = 64;
+	struct keystroke keystrokes[keystrokes_capacity];
 
-	//Create threads
+	unsigned char c;
+	unsigned char bytes_read = 0;
+
+	// Prompt
+	printf("rawInputTool$ "); 
+	fflush(stdout);
+
+	// Enter non-canonical mode without echoing to collect raw data
+	disable_buffering_and_echoing();
+
+	// Create thread for timer function
 	pthread_t timer_thread, keystroke_thread;
 	if(pthread_create(&timer_thread, NULL, (void*)timer_function, &shared_data) != 0) {
 		fprintf(stderr, "Error creating timer thread.\n");
 		return 1;
 	}
 
-	// STart the keystroke thread
-	if(pthread_create(&keystroke_thread, NULL, (void*)keystroke_function, &shared_data) != 0) {
-		fprintf(stderr, "Error creating keystroke thread.\n");
-		return 1;
+	// Actually collect the raw data
+	while(data->flag == true) {
+		bytes_read = read(STDIN_FILENO, &c, 1);
+		if(bytes_read <= 0) continue;
+		
+		// Capture character stroke and timestamp
+		if(keystrokes_length < keystrokes_capacity) {
+			keystrokes[keystrokes_length].c = c;
+			clock_gettime( CLOCK_MONOTONIC, &(keystrokes[keystrokes_length].timestamp) );
+			keystrokes_length++;
+		}
+
+		// echo back what was written
+		switch(c) {
+			case BACKSPACE:
+				printf("\b \b");
+				fflush(stdout);
+				break;
+
+			default:
+				printf("%c", c);
+				fflush(stdout);
+				break;
+		}
+
 	}
 
-	pthread_join(timer_thread, NULL);
-	pthread_join(keystroke_thread, NULL);
+	// Print the numeric values of keys pressed
+	fflush(stdout);
+	enable_buffering_and_echoing();
+	printf("\nNumeric codes entered:\n");
+	printf("\n%d", (int) keystrokes[0].c);
+	for(size_t i = 1; i < keystrokes_length ; i++) 
+		printf(", %d", (int) keystrokes[i].c);
 
-	// Clean up
+	printf("\n");
+	unsigned long *time_deltas = get_time_deltas_in_milliseconds(keystrokes, keystrokes_length);
+	if(time_deltas == NULL) {
+		fprintf(stderr, "Could not get time deltas.\n"); 
+	}
+
+	printf("\nTime deltas:\n");
+	printf("%ld", time_deltas[0]);
+	for(size_t i = 1; i < keystrokes_length - 1; i++) 
+		printf(", %ld", time_deltas[i]);
+
+	printf("\n");
+
+
+
+	pthread_join(timer_thread, NULL);
+
+	// Clean up thread mutex
 	pthread_mutex_destroy(&shared_data.lock);
 
 	printf("Program terminated.\n");
