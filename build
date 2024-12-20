@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+gcc kdt.c -o kdt -pthread
