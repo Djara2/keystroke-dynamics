@@ -1,0 +1,46 @@
+<h1 id="table-of-contents">Table of Contents</h1>
+<p>[toc]</p>
+<h1 id="data-collected">Data Collected</h1>
+<p>This is a <strong>free-text system</strong>, as it is the focus of our research. Likewise, we are only collecting the symbols hit on the keyboard over the duration of the typing exam(s) and the time intervals between those keypresses.</p>
+<p>We then form the overall string typed (including backspaces), and iterate over it in size-2 chunks to determine phonemes. We then derive a record of the time intervals elapsed for individual phonemes, between phonemes, and the time between the individual characters that make the phoneme. The phonemes considered for any one run are not fixed or known ahead-of-time. They are derived according to what the user types for that session.</p>
+<h1 id="workflow">Workflow</h1>
+<ol class="incremental" type="1">
+<li>Until the number of sessions is completed…
+<ol class="incremental" type="1">
+<li>Run the typing exam.</li>
+<li>Store the data for that session in their relevant buffers.</li>
+<li>Move all of that data into a nearest, unused <code>session</code> struct within the <code>sessions</code> buffer.</li>
+<li>Clear out per-session buffers for next run.</li>
+<li>Prompt user if they are ready to take the next exam.</li>
+</ol></li>
+<li>Construct a hashmap which maps phonemes to an array of time deltas.</li>
+<li>For each session in the <code>sessions</code> buffer…
+<ol class="incremental" type="1">
+<li>For each size-2 substring (phoneme) in the overall string typed by the user…
+<ol class="incremental" type="1">
+<li>Add the substring (phoneme) as a key of the hashmap.</li>
+<li>Add the related time delta to the array of time deltas pointed to by the phoneme (key).</li>
+</ol></li>
+</ol></li>
+<li>Write the contents of the hashmap to the specified output file as a CSV.
+<ol class="incremental" type="1">
+<li>For each key (phoneme) in the hashmap…
+<ol class="incremental" type="1">
+<li>Write the phoneme as a column of the CSV.</li>
+</ol></li>
+<li>Define an iterator variable <code>i</code>.</li>
+<li>While NO time arrays have a length smaller than <code>i</code>…
+<ol class="incremental" type="1">
+<li>Set a boolean <code>i_smaller</code> flag to false.</li>
+<li>Set an integer variable <code>i_smaller_count</code> to 0.</li>
+<li>For each key (phoneme) in the hashmap…
+<ol class="incremental" type="1">
+<li>If the length of the time delta array is larger than <code>i</code>, set <code>i_smaller</code> to true AND increment <code>i_smaller_count</code>. Otherwise, set <code>i_smaller</code> to false.</li>
+<li>IF <code>i_smaller</code> IS FALSE, skip the current key (phoneme) and move to the next. OTHERWISE write <code>i</code>th time delta for the current key in the CSV.</li>
+</ol></li>
+<li>IF <code>i_smaller_count</code> IS 0, stop looping.</li>
+</ol></li>
+</ol></li>
+<li>All data is now written to the CSV file and it may be used for analysis.</li>
+<li>Program terminates.</li>
+</ol>
