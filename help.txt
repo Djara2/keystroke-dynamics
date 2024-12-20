@@ -1,1 +1,5 @@
-Usage: 
+Usage: kdt [OPTION]... [FILE] 
+Collect keystroke dynamics from a user.
+
+
+	-d, --duration			the amount of seconds the 

@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <termios.h>
 #include <time.h>
+#include <stdbool.h>
 
 #define BACKSPACE 127
 #define ENTER 10
@@ -64,9 +65,37 @@ unsigned long* get_time_deltas_in_milliseconds(struct keystroke keystrokes[], si
 }
 
 int main(int argc, char **argv) {
+	// Provide usage instructions (e.g. --help) if no arguments are provided
 	if(argc < 2) {
-		
+		FILE *help_fh = fopen("help.txt", "r");
+		size_t help_fh_contents_length = 0;
+		size_t help_fh_contents_capacity = 512;
+		char *help_fh_contents = malloc(sizeof(char) * help_fh_contents_capacity);
+		char c = fgetc(help_fh);
+
+		// get contents of help.txt
+		while(c != EOF) {
+			help_fh_contents[help_fh_contents_length] = c;
+			help_fh_contents_length++;
+			if(help_fh_contents_length >= help_fh_contents_capacity) {
+				help_fh_contents_capacity *= 2;
+				help_fh_contents = realloc(help_fh_contents, sizeof(char) * help_fh_contents_capacity);
+				if(help_fh_contents == NULL) {
+					fprintf(stderr, "Failed to allocate more memory for contents of help.txt.\n");
+					return 1;
+				}
+			}
+
+			c = fgetc(help_fh);
+		}
+
+		// Close file and display contents
+		fclose(help_fh);
+		printf("%s\n", help_fh_contents);
+		free(help_fh_contents);
+		return 0;
 	}
+
 	size_t keystrokes_length = 0;
 	size_t keystrokes_capacity = 64;
 	struct keystroke keystrokes[keystrokes_capacity];
