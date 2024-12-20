@@ -10,6 +10,12 @@
 #define BACKSPACE 127
 #define ENTER 10
 
+// Principal data collection object
+struct keystroke {
+	char c;
+	struct timespec timestamp;	
+};
+
 // Shared data structure for threads
 typedef struct {
 	bool flag;
@@ -17,105 +23,15 @@ typedef struct {
 	pthread_mutex_t lock;
 } SharedData;
 
-void non_canonical_mode_with_echoing() { 
-	struct termios t;
-	tcgetattr(STDIN_FILENO, &t);
-	// Disable canonical mode (enter non-canonical mode)
-	t.c_lflag &= ~(ICANON);  
-	// Leave echoing
-	t.c_lflag |= ECHO;
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
+void disable_buffering_and_echoing();
+void enable_buffering_and_echoing();
 
-void canonical_mode_with_echoing() { 
-	struct termios t;
-	tcgetattr(STDIN_FILENO, &t);
-	t.c_lflag |= ICANON | ECHO;
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
+void timer_function(void* arg);
 
-void disable_buffering_and_echoing() {
-	struct termios t;
-	tcgetattr(STDIN_FILENO, &t);
-	// disable canonical mode and echo
-	t.c_lflag &= ~(ICANON | ECHO); 
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
+unsigned long* get_time_deltas_in_milliseconds(struct keystroke keystrokes[], size_t keystrokes_length);
 
-void enable_buffering_and_echoing() {
-	struct termios t;
-	tcgetattr(STDIN_FILENO, &t);
-	// Re-enable canonical mode and echo
-	t.c_lflag |= (ICANON | ECHO);
-	tcsetattr(STDIN_FILENO, TCSANOW, &t);
-}
-
-void timer_function(void* arg) {
-	SharedData* data = (SharedData*)arg;
-
-	sleep(data->seconds);
-
-	pthread_mutex_lock(&data->lock);
-	data->flag = false;
-	printf("\nTimer has elapsed! Flag changed to: %s\n", data->flag ? "true" : "false");
-	pthread_mutex_unlock(&data->lock);
-}
-
-struct keystroke {
-	char c;
-	struct timespec timestamp;	
-};
-
-unsigned long* get_time_deltas_in_milliseconds(struct keystroke keystrokes[], size_t keystrokes_length) {
-	if(keystrokes == NULL) return NULL;
-		
-	unsigned long *time_deltas = malloc(sizeof(unsigned long) * (keystrokes_length - 1));
-	if(time_deltas == NULL) {
-		printf("Error allocating memory for time deltas buffer.\n");
-		return NULL;
-	}
-
-	for(size_t i = 0; i < keystrokes_length - 1; i++) {
-		unsigned long whole_seconds_difference_in_ms = 1000 * (keystrokes[i + 1].timestamp.tv_sec - keystrokes[i].timestamp.tv_sec);
-		unsigned long nanoseconds_difference_in_ms   = (keystrokes[i + 1].timestamp.tv_nsec - keystrokes[i].timestamp.tv_nsec) / 1000000;
-		time_deltas[i] = whole_seconds_difference_in_ms + nanoseconds_difference_in_ms;	
-	}
-
-	return time_deltas;
-}
-
-void display_help_text() {
-	FILE *help_fh = fopen("res/help.txt", "r");
-	size_t help_fh_contents_length = 0;
-	size_t help_fh_contents_capacity = 512;
-	char *help_fh_contents = malloc(sizeof(char) * help_fh_contents_capacity);
-	char c = fgetc(help_fh);
-
-	// get contents of help.txt
-	while(c != EOF) {
-		help_fh_contents[help_fh_contents_length] = c;
-		help_fh_contents_length++;
-		if(help_fh_contents_length >= help_fh_contents_capacity) {
-			help_fh_contents_capacity *= 2;
-			help_fh_contents = realloc(help_fh_contents, sizeof(char) * help_fh_contents_capacity);
-			if(help_fh_contents == NULL) {
-				fprintf(stderr, "Failed to allocate more memory for contents of help.txt.\n");
-			}
-		}
-
-		c = fgetc(help_fh);
-	}
-
-	// Close file and display contents
-	fclose(help_fh);
-	printf("%s\n", help_fh_contents);
-	free(help_fh_contents);
-}
-
-void display_environment_details(char user[], char email[], char major[], int duration, short number_of_samples) {
-	printf("Environment:\n\tUser: %s\n\tEmail: %s\n\tMajor: %s\n\tTyping duration: %d\n\tSamples to take: %hd\n",
-			user, email, major, duration, number_of_samples);
-}
+void display_help_text();
+void display_environment_details(char user[], char email[], char major[], int duration, short number_of_samples);
 
 int main(int argc, char **argv) {
 	// Provide usage instructions (e.g. --help) if no arguments are provided
@@ -275,10 +191,12 @@ int main(int argc, char **argv) {
 		}
 
 	}
-
-	// Print the numeric values of keys pressed
+	
+	// Restore canonical mode and echoing
 	fflush(stdout);
 	enable_buffering_and_echoing();
+
+	// Print the numeric values of keys pressed
 	printf("\nNumeric codes entered:\n");
 	printf("\n%d", (int) keystrokes[0].c);
 	for(size_t i = 1; i < keystrokes_length ; i++) 
@@ -306,4 +224,82 @@ int main(int argc, char **argv) {
 
 	printf("Program terminated.\n");
 	return 0;
+}
+
+void disable_buffering_and_echoing() {
+	struct termios t;
+	tcgetattr(STDIN_FILENO, &t);
+	// disable canonical mode and echo
+	t.c_lflag &= ~(ICANON | ECHO); 
+	tcsetattr(STDIN_FILENO, TCSANOW, &t);
+}
+
+void enable_buffering_and_echoing() {
+	struct termios t;
+	tcgetattr(STDIN_FILENO, &t);
+	// Re-enable canonical mode and echo
+	t.c_lflag |= (ICANON | ECHO);
+	tcsetattr(STDIN_FILENO, TCSANOW, &t);
+}
+
+void timer_function(void* arg) {
+	SharedData* data = (SharedData*)arg;
+
+	sleep(data->seconds);
+
+	pthread_mutex_lock(&data->lock);
+	data->flag = false;
+	printf("\nTimer has elapsed! Flag changed to: %s\n", data->flag ? "true" : "false");
+	pthread_mutex_unlock(&data->lock);
+}
+
+unsigned long* get_time_deltas_in_milliseconds(struct keystroke keystrokes[], size_t keystrokes_length) {
+	if(keystrokes == NULL) return NULL;
+		
+	unsigned long *time_deltas = malloc(sizeof(unsigned long) * (keystrokes_length - 1));
+	if(time_deltas == NULL) {
+		printf("Error allocating memory for time deltas buffer.\n");
+		return NULL;
+	}
+
+	for(size_t i = 0; i < keystrokes_length - 1; i++) {
+		unsigned long whole_seconds_difference_in_ms = 1000 * (keystrokes[i + 1].timestamp.tv_sec - keystrokes[i].timestamp.tv_sec);
+		unsigned long nanoseconds_difference_in_ms   = (keystrokes[i + 1].timestamp.tv_nsec - keystrokes[i].timestamp.tv_nsec) / 1000000;
+		time_deltas[i] = whole_seconds_difference_in_ms + nanoseconds_difference_in_ms;	
+	}
+
+	return time_deltas;
+}
+
+void display_help_text() {
+	FILE *help_fh = fopen("res/help.txt", "r");
+	size_t help_fh_contents_length = 0;
+	size_t help_fh_contents_capacity = 512;
+	char *help_fh_contents = malloc(sizeof(char) * help_fh_contents_capacity);
+	char c = fgetc(help_fh);
+
+	// get contents of help.txt
+	while(c != EOF) {
+		help_fh_contents[help_fh_contents_length] = c;
+		help_fh_contents_length++;
+		if(help_fh_contents_length >= help_fh_contents_capacity) {
+			help_fh_contents_capacity *= 2;
+			help_fh_contents = realloc(help_fh_contents, sizeof(char) * help_fh_contents_capacity);
+			if(help_fh_contents == NULL) {
+				fprintf(stderr, "Failed to allocate more memory for contents of help.txt.\n");
+			}
+		}
+
+		c = fgetc(help_fh);
+	}
+
+	// Close file and display contents
+	fclose(help_fh);
+	printf("%s\n", help_fh_contents);
+	free(help_fh_contents);
+}
+
+void display_environment_details(char user[], char email[], char major[], int duration, short number_of_samples) {
+	printf("Environment:\n\tUser: %s\n\tEmail: %s\n\tMajor: %s\n\tTyping duration: %d\n\tSamples to take: %hd\n",
+			user, email, major, duration, number_of_samples);
 }
