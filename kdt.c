@@ -5,6 +5,7 @@
 #include <time.h>
 
 #define BACKSPACE 127
+#define ENTER 10
 
 void non_canonical_mode_with_echoing() { 
 	struct termios t;
@@ -62,12 +63,10 @@ unsigned long* get_time_deltas_in_milliseconds(struct keystroke keystrokes[], si
 	return time_deltas;
 }
 
-int main(void) {
-	/*
-	unsigned short input_buffer_capacity = 512;
-	unsigned short input_buffer_length = 0;
-	unsigned char input_buffer[input_buffer_capacity];
-	*/
+int main(int argc, char **argv) {
+	if(argc < 2) {
+		
+	}
 	size_t keystrokes_length = 0;
 	size_t keystrokes_capacity = 64;
 	struct keystroke keystrokes[keystrokes_capacity];
@@ -96,8 +95,10 @@ int main(void) {
 				printf("\b \b");
 				fflush(stdout);
 				break;
-			case '\n':
+
+			case ENTER:
 				break;
+
 			default:
 				printf("%c", c);
 				fflush(stdout);
@@ -105,10 +106,11 @@ int main(void) {
 		}
 	}
 
-	// Print the numeric values of keys pressed	
+	// Print the numeric values of keys pressed
+	fflush(stdout);
 	enable_buffering_and_echoing();
-	printf("Numeric codes entered:\n");
-	printf("\n%c", keystrokes[0].c);
+	printf("\nNumeric codes entered:\n");
+	printf("\n%d", (int) keystrokes[0].c);
 	for(size_t i = 1; i < keystrokes_length ; i++) 
 		printf(", %d", (int) keystrokes[i].c);
 
@@ -119,7 +121,7 @@ int main(void) {
 		return 1;
 	}
 
-	printf("Time deltas:\n");
+	printf("\nTime deltas:\n");
 	printf("%ld", time_deltas[0]);
 	for(size_t i = 1; i < keystrokes_length - 1; i++) 
 		printf(", %ld", time_deltas[i]);
