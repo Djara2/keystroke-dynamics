@@ -135,8 +135,8 @@ int main(int argc, char **argv) {
 		{ 
 			// If the current token is -d or --duration, then the next token is surely the time (otherwise, error).
 			typing_duration = atoi(argv[argv_iterator + 1]);
-			if(typing_duration == 0) {
-				fprintf(stderr, "The value for the -d or --duration flags must be an integer.\n");
+			if(typing_duration <= 0) {
+				fprintf(stderr, "The value for the -d or --duration flags must be a non-zero positive integer.\n");
 				exit(EXIT_FAILURE);
 			}
 			// Skip next argv item, since it is just the value for the current argument
