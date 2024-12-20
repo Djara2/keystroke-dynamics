@@ -85,7 +85,7 @@ unsigned long* get_time_deltas_in_milliseconds(struct keystroke keystrokes[], si
 }
 
 void display_help_text() {
-	FILE *help_fh = fopen("help.txt", "r");
+	FILE *help_fh = fopen("res/help.txt", "r");
 	size_t help_fh_contents_length = 0;
 	size_t help_fh_contents_capacity = 512;
 	char *help_fh_contents = malloc(sizeof(char) * help_fh_contents_capacity);
