@@ -112,6 +112,11 @@ void display_help_text() {
 	free(help_fh_contents);
 }
 
+void display_environment_details(char user[], char email[], char major[], int duration, short number_of_samples) {
+	printf("Environment:\n\tUser: %s\n\tEmail: %s\n\tMajor: %s\n\tTyping duration: %d\n\tSamples to take: %hd\n",
+			user, email, major, duration, number_of_samples);
+}
+
 int main(int argc, char **argv) {
 	// Provide usage instructions (e.g. --help) if no arguments are provided
 	if(argc < 2) {
@@ -124,6 +129,10 @@ int main(int argc, char **argv) {
 	char *output_file_path;
 	FILE *output_file_path_fh;
 	char argv_iterator = 1;
+	char user[64];
+	char email[64];
+	char major[64];
+	short number_of_tests = 0;
 	while(argv_iterator < argc) {
 		// Typing duration argument (required) (-d or --duration)
 		if( (strcmp(argv[argv_iterator], "-d") == 0) || (strcmp(argv[argv_iterator], "--duration") == 0) )
@@ -155,6 +164,51 @@ int main(int argc, char **argv) {
 			argv_iterator++;
 		}
 		
+		// User information
+		if( (strcmp(argv[argv_iterator], "-u") == 0) || (strcmp(argv[argv_iterator], "--user") == 0) )
+		{
+			if(strlen(argv[argv_iterator + 1]) >= 64) {
+				fprintf(stderr, "User identifier cannot be longer than 64 characters.\n");
+				exit(EXIT_FAILURE);
+			}
+
+			strcpy(user, argv[argv_iterator + 1]);
+			argv_iterator++;
+		}
+
+		// Email information
+		if( (strcmp(argv[argv_iterator], "-e") == 0) || (strcmp(argv[argv_iterator], "--email") == 0) ) {
+			if(strlen(argv[argv_iterator + 1]) >= 64) {
+				fprintf(stderr, "Email cannot be longer than 64 characters.\n");
+				exit(EXIT_FAILURE);
+			}
+			
+			strcpy(email, argv[argv_iterator + 1]);
+			argv_iterator++;
+		}
+
+		// Major information
+		if( (strcmp(argv[argv_iterator], "-m") == 0) || (strcmp(argv[argv_iterator], "--major") == 0) ) {
+			if(strlen(argv[argv_iterator + 1]) >= 64) {
+				fprintf(stderr, "Major cannot be longer than 64 characters.\n");
+				exit(EXIT_FAILURE);
+			}
+
+			strcpy(major, argv[argv_iterator + 1]);
+			argv_iterator++;
+		}
+
+		// Number of tests/samples to take
+		if( (strcmp(argv[argv_iterator], "-n") == 0) || (strcmp(argv[argv_iterator], "--number") == 0) ) {
+			number_of_tests = atoi(argv[argv_iterator + 1]);
+			if(number_of_tests <= 0) {
+				fprintf(stderr, "The number of tests must be a non-zero positive integer.\n");
+				exit(EXIT_FAILURE);
+			}
+
+			argv_iterator++;
+		}
+
 		// Help text (-h or --help)
 		if( (strcmp(argv[argv_iterator], "-h") == 0) || (strcmp(argv[argv_iterator], "--help") == 0) )
 		{
@@ -164,7 +218,8 @@ int main(int argc, char **argv) {
 
 		argv_iterator++;
 	}
-	printf("The typing collection will last for %d seconds.\n", typing_duration);
+	//printf("The typing collection will last for %d seconds.\n", typing_duration);
+	display_environment_details(user, email, major, typing_duration, number_of_tests);
 
 	// Initialize shared data for timer fucntion
 	SharedData shared_data = {
