@@ -1,5 +1,22 @@
-Usage: kdt [OPTION]... [FILE] 
+Usage: kdt [OPTIONS]... [FILE] 
 Collect keystroke dynamics from a user.
 
+Required arguments:
+	-u, --user			the identifier for the person taking the typing examination.
 
-	-d, --duration			the amount of seconds the 
+	-e, --email			the username and domain at which the person identified by the -u or --user arguments
+					may be reached, after the typing examination.
+
+	-m, --major			the educational major or professional occupation of the person taking the typing examination.
+
+	-d, --duration			the amount of seconds for which the data collection will occur. 
+
+	-n, --number			the amount of typing exams the individual will take in the session.
+
+	-o, --output			the name of the file to which typing data will be written in CSV format.
+
+Examples:
+  kdt -u dave -e dave@coolmail.com -m "computer science" -d 60 -n 10 -o dave.csv  
+  kdt --user dave --email dave@coolmail.com --major "computer science" --duration 60 --number 10 --output dave.csv
+
+BCDE Group 2024-2025
