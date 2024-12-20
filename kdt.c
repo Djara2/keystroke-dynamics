@@ -5,6 +5,7 @@
 #include <time.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <string.h>
 
 #define BACKSPACE 127
 #define ENTER 10
@@ -88,44 +89,87 @@ void keystroke_function(void* arg) {
 
 }
 
-int main(int argc, char **argv) {
-	int seconds = 0;
+void display_help_text() {
+	FILE *help_fh = fopen("help.txt", "r");
+	size_t help_fh_contents_length = 0;
+	size_t help_fh_contents_capacity = 512;
+	char *help_fh_contents = malloc(sizeof(char) * help_fh_contents_capacity);
+	char c = fgetc(help_fh);
 
-	// Provide usage instructions (e.g. --help) if no arguments are provided
-	if(argc < 2) {
-		FILE *help_fh = fopen("help.txt", "r");
-		size_t help_fh_contents_length = 0;
-		size_t help_fh_contents_capacity = 512;
-		char *help_fh_contents = malloc(sizeof(char) * help_fh_contents_capacity);
-		char c = fgetc(help_fh);
-
-		// get contents of help.txt
-		while(c != EOF) {
-			help_fh_contents[help_fh_contents_length] = c;
-			help_fh_contents_length++;
-			if(help_fh_contents_length >= help_fh_contents_capacity) {
-				help_fh_contents_capacity *= 2;
-				help_fh_contents = realloc(help_fh_contents, sizeof(char) * help_fh_contents_capacity);
-				if(help_fh_contents == NULL) {
-					fprintf(stderr, "Failed to allocate more memory for contents of help.txt.\n");
-					return 1;
-				}
+	// get contents of help.txt
+	while(c != EOF) {
+		help_fh_contents[help_fh_contents_length] = c;
+		help_fh_contents_length++;
+		if(help_fh_contents_length >= help_fh_contents_capacity) {
+			help_fh_contents_capacity *= 2;
+			help_fh_contents = realloc(help_fh_contents, sizeof(char) * help_fh_contents_capacity);
+			if(help_fh_contents == NULL) {
+				fprintf(stderr, "Failed to allocate more memory for contents of help.txt.\n");
 			}
-
-			c = fgetc(help_fh);
 		}
 
-		// Close file and display contents
-		fclose(help_fh);
-		printf("%s\n", help_fh_contents);
-		free(help_fh_contents);
-		return 0;
+		c = fgetc(help_fh);
+	}
+
+	// Close file and display contents
+	fclose(help_fh);
+	printf("%s\n", help_fh_contents);
+	free(help_fh_contents);
+}
+
+int main(int argc, char **argv) {
+	// Provide usage instructions (e.g. --help) if no arguments are provided
+	if(argc < 2) {
+		display_help_text();
+		exit(EXIT_FAILURE);
 	}
 	
 	// Parse command line arguments
-	
-	int sec = atoi(argv[2]);
-	printf("The second count is: %d\n", sec);
+	int typing_duration = 0;
+	char *output_file_path;
+	FILE *output_file_path_fh;
+	char argv_iterator = 1;
+	while(argv_iterator < argc) {
+		// Typing duration argument (required) (-d or --duration)
+		if( (strcmp(argv[argv_iterator], "-d") == 0) || (strcmp(argv[argv_iterator], "--duration") == 0) )
+		{ 
+			// If the current token is -d or --duration, then the next token is surely the time (otherwise, error).
+			typing_duration = atoi(argv[argv_iterator + 1]);
+			if(typing_duration == 0) {
+				fprintf(stderr, "The value for the -d or --duration flags must be an integer.\n");
+				exit(EXIT_FAILURE);
+			}
+			// Skip next argv item, since it is just the value for the current argument
+			argv_iterator++;
+		}
+
+		// Output file argument (required) (-o or --output)
+		if( (strcmp(argv[argv_iterator], "-o") == 0) || (strcmp(argv[argv_iterator], "--output") == 0) )
+		{
+			output_file_path = argv[argv_iterator + 1];
+
+			// Check that the specified file can actually be opened
+			output_file_path_fh = fopen(output_file_path, "w");
+			if(output_file_path_fh == NULL) {
+				fprintf(stderr, "Could not open file \"%s\" for writing.\n");
+				exit(EXIT_FAILURE);
+			}
+			fclose(output_file_path_fh);
+
+			// Skip next argv item, since it is just the value for the current argument
+			argv_iterator++;
+		}
+		
+		// Help text (-h or --help)
+		if( (strcmp(argv[argv_iterator], "-h") == 0) || (strcmp(argv[argv_iterator], "--help") == 0) )
+		{
+			display_help_text();
+			exit(EXIT_SUCCESS); 
+		}
+
+		argv_iterator++;
+	}
+	printf("The typing collection will last for %d seconds.\n", typing_duration);
 
 	// Initialize shared data for timer fucntion
 	SharedData shared_data = {
@@ -135,7 +179,7 @@ int main(int argc, char **argv) {
 	pthread_mutex_init(&shared_data.lock, NULL);
 	
 	size_t keystrokes_length = 0;
-	size_t keystrokes_capacity = 64;
+	size_t keystrokes_capacity = 2048;
 	struct keystroke keystrokes[keystrokes_capacity];
 
 	unsigned char c;
@@ -156,7 +200,7 @@ int main(int argc, char **argv) {
 	}
 
 	// Actually collect the raw data
-	while(data->flag == true) {
+	while(shared_data.flag == true) {
 		bytes_read = read(STDIN_FILENO, &c, 1);
 		if(bytes_read <= 0) continue;
 		
