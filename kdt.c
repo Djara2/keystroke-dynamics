@@ -84,11 +84,6 @@ unsigned long* get_time_deltas_in_milliseconds(struct keystroke keystrokes[], si
 	return time_deltas;
 }
 
-void keystroke_function(void* arg) {
-	SharedData* data = (SharedData*)arg;
-
-}
-
 void display_help_text() {
 	FILE *help_fh = fopen("help.txt", "r");
 	size_t help_fh_contents_length = 0;
@@ -193,7 +188,7 @@ int main(int argc, char **argv) {
 	disable_buffering_and_echoing();
 
 	// Create thread for timer function
-	pthread_t timer_thread, keystroke_thread;
+	pthread_t timer_thread;
 	if(pthread_create(&timer_thread, NULL, (void*)timer_function, &shared_data) != 0) {
 		fprintf(stderr, "Error creating timer thread.\n");
 		return 1;
