@@ -9,6 +9,7 @@
 
 #define BACKSPACE 127
 #define ENTER 10
+#define REQUIRED_ARGUMENTS_COUNT 6
 
 // Principal data collection object
 struct keystroke {
@@ -23,6 +24,10 @@ typedef struct {
 	pthread_mutex_t lock;
 } SharedData;
 
+//                       0     1      2      3                4                5
+enum required_arguments {USER, EMAIL, MAJOR, TYPING_DURATION, NUMBER_OF_TESTS, OUTPUT_FILE_PATH};
+enum system_error_code  {NO_ERROR, INVALID_ARGUMENT_VALUE, INVALID_OUTPUT_FILE, INSUFFICIENT_ARGUMENTS};
+
 void disable_buffering_and_echoing();
 void enable_buffering_and_echoing();
 
@@ -33,6 +38,10 @@ unsigned long* get_time_deltas_in_milliseconds(struct keystroke keystrokes[], si
 void display_help_text();
 void display_environment_details(char user[], char email[], char major[], int duration, short number_of_samples);
 
+enum system_error_code parse_command_line_arguments(int *typing_duration, char *output_file_path, FILE *output_file_path_fh, 
+						    char *user, char *email, char *major, short *number_of_tests,
+						    int argc, char **argv);
+
 int main(int argc, char **argv) {
 	// Provide usage instructions (e.g. --help) if no arguments are provided
 	if(argc < 2) {
@@ -42,98 +51,34 @@ int main(int argc, char **argv) {
 	
 	// Parse command line arguments
 	int typing_duration = 0;
-	char *output_file_path;
-	FILE *output_file_path_fh;
-	char argv_iterator = 1;
+	char *output_file_path = NULL;
+	FILE *output_file_path_fh = NULL;
 	char user[64];
 	char email[64];
 	char major[64];
 	short number_of_tests = 0;
-	while(argv_iterator < argc) {
-		// Typing duration argument (required) (-d or --duration)
-		if( (strcmp(argv[argv_iterator], "-d") == 0) || (strcmp(argv[argv_iterator], "--duration") == 0) )
-		{ 
-			// If the current token is -d or --duration, then the next token is surely the time (otherwise, error).
-			typing_duration = atoi(argv[argv_iterator + 1]);
-			if(typing_duration <= 0) {
-				fprintf(stderr, "The value for the -d or --duration flags must be a non-zero positive integer.\n");
-				exit(EXIT_FAILURE);
-			}
-			// Skip next argv item, since it is just the value for the current argument
-			argv_iterator++;
-		}
-
-		// Output file argument (required) (-o or --output)
-		if( (strcmp(argv[argv_iterator], "-o") == 0) || (strcmp(argv[argv_iterator], "--output") == 0) )
-		{
-			output_file_path = argv[argv_iterator + 1];
-
-			// Check that the specified file can actually be opened
-			output_file_path_fh = fopen(output_file_path, "w");
-			if(output_file_path_fh == NULL) {
-				fprintf(stderr, "Could not open file \"%s\" for writing.\n");
-				exit(EXIT_FAILURE);
-			}
-			fclose(output_file_path_fh);
-
-			// Skip next argv item, since it is just the value for the current argument
-			argv_iterator++;
-		}
-		
-		// User information
-		if( (strcmp(argv[argv_iterator], "-u") == 0) || (strcmp(argv[argv_iterator], "--user") == 0) )
-		{
-			if(strlen(argv[argv_iterator + 1]) >= 64) {
-				fprintf(stderr, "User identifier cannot be longer than 64 characters.\n");
-				exit(EXIT_FAILURE);
-			}
-
-			strcpy(user, argv[argv_iterator + 1]);
-			argv_iterator++;
-		}
-
-		// Email information
-		if( (strcmp(argv[argv_iterator], "-e") == 0) || (strcmp(argv[argv_iterator], "--email") == 0) ) {
-			if(strlen(argv[argv_iterator + 1]) >= 64) {
-				fprintf(stderr, "Email cannot be longer than 64 characters.\n");
-				exit(EXIT_FAILURE);
-			}
-			
-			strcpy(email, argv[argv_iterator + 1]);
-			argv_iterator++;
-		}
-
-		// Major information
-		if( (strcmp(argv[argv_iterator], "-m") == 0) || (strcmp(argv[argv_iterator], "--major") == 0) ) {
-			if(strlen(argv[argv_iterator + 1]) >= 64) {
-				fprintf(stderr, "Major cannot be longer than 64 characters.\n");
-				exit(EXIT_FAILURE);
-			}
-
-			strcpy(major, argv[argv_iterator + 1]);
-			argv_iterator++;
-		}
-
-		// Number of tests/samples to take
-		if( (strcmp(argv[argv_iterator], "-n") == 0) || (strcmp(argv[argv_iterator], "--number") == 0) ) {
-			number_of_tests = atoi(argv[argv_iterator + 1]);
-			if(number_of_tests <= 0) {
-				fprintf(stderr, "The number of tests must be a non-zero positive integer.\n");
-				exit(EXIT_FAILURE);
-			}
-
-			argv_iterator++;
-		}
-
-		// Help text (-h or --help)
-		if( (strcmp(argv[argv_iterator], "-h") == 0) || (strcmp(argv[argv_iterator], "--help") == 0) )
-		{
+	enum system_error_code error_code = NO_ERROR;
+	error_code = parse_command_line_arguments(&typing_duration, output_file_path, output_file_path_fh, user, email, major, &number_of_tests, argc, argv);
+	switch(error_code) {
+		case NO_ERROR:
+			break;
+		case INVALID_ARGUMENT_VALUE:
+			exit(EXIT_FAILURE);
+			break;
+		case INVALID_OUTPUT_FILE:
+			exit(EXIT_FAILURE);
+			break;
+		case INSUFFICIENT_ARGUMENTS:
+			fprintf(stderr, "Insufficient arguments were provided for the program to run. See the help text below (kdt --help)\n\n");
 			display_help_text();
-			exit(EXIT_SUCCESS); 
-		}
-
-		argv_iterator++;
+			exit(EXIT_FAILURE);
+			break;
+		default:
+			fprintf(stderr, "Unhandled/unspecified error encountered while parsing command line arguments. Terminating program...\n");
+			exit(EXIT_FAILURE);
+			break;
 	}
+
 	//printf("The typing collection will last for %d seconds.\n", typing_duration);
 	display_environment_details(user, email, major, typing_duration, number_of_tests);
 
@@ -302,4 +247,132 @@ void display_help_text() {
 void display_environment_details(char user[], char email[], char major[], int duration, short number_of_samples) {
 	printf("Environment:\n\tUser: %s\n\tEmail: %s\n\tMajor: %s\n\tTyping duration: %d\n\tSamples to take: %hd\n",
 			user, email, major, duration, number_of_samples);
+}
+
+enum system_error_code parse_command_line_arguments(int *typing_duration, char *output_file_path, FILE *output_file_path_fh, 
+						    char *user, char *email, char *major, short *number_of_tests,
+						    int argc, char **argv) {
+	bool fulfilled_arguments[REQUIRED_ARGUMENTS_COUNT];
+	for(char i = 0; i < REQUIRED_ARGUMENTS_COUNT; i++) 
+		fulfilled_arguments[i] = false;
+
+	char argv_iterator = 1;
+	while(argv_iterator < argc) {
+		// Typing duration argument (required) (-d or --duration)
+		if( (strcmp(argv[argv_iterator], "-d") == 0) || (strcmp(argv[argv_iterator], "--duration") == 0) )
+		{ 
+			// If the current token is -d or --duration, then the next token is surely the time (otherwise, error).
+			(*typing_duration) = atoi(argv[argv_iterator + 1]);
+			if( (*typing_duration) <= 0) {
+				fprintf(stderr, "The value for the -d or --duration flags must be a non-zero positive integer.\n");
+				return INVALID_ARGUMENT_VALUE;
+			}
+
+			// Update record of fulfilled arguments
+			fulfilled_arguments[TYPING_DURATION] = true;
+
+			// Skip next argv item, since it is just the value for the current argument
+			argv_iterator++;
+		}
+
+		// Output file argument (required) (-o or --output)
+		if( (strcmp(argv[argv_iterator], "-o") == 0) || (strcmp(argv[argv_iterator], "--output") == 0) )
+		{
+			output_file_path = argv[argv_iterator + 1];
+
+			// Check that the specified file can actually be opened
+			output_file_path_fh = fopen(output_file_path, "w");
+			if(output_file_path_fh == NULL) {
+				fprintf(stderr, "Could not open file \"%s\" for writing.\n");
+				return INVALID_OUTPUT_FILE;
+			}
+			fclose(output_file_path_fh);
+			
+			// Update record of fulfilled arguments
+			fulfilled_arguments[OUTPUT_FILE_PATH] = true;
+
+			// Skip next argv item, since it is just the value for the current argument
+			argv_iterator++;
+		}
+		
+		// User information
+		if( (strcmp(argv[argv_iterator], "-u") == 0) || (strcmp(argv[argv_iterator], "--user") == 0) )
+		{
+			if(strlen(argv[argv_iterator + 1]) >= 64) {
+				fprintf(stderr, "User identifier cannot be longer than 64 characters.\n");
+				return INVALID_ARGUMENT_VALUE;
+			}
+			strcpy(user, argv[argv_iterator + 1]);
+
+			// Update record of fulfilled arguments
+			fulfilled_arguments[USER] = true;			
+
+			// Skip next argv item, since it is just the value for the current argument.
+			argv_iterator++;
+		}
+
+		// Email information
+		if( (strcmp(argv[argv_iterator], "-e") == 0) || (strcmp(argv[argv_iterator], "--email") == 0) ) {
+			if(strlen(argv[argv_iterator + 1]) >= 64) {
+				fprintf(stderr, "Email cannot be longer than 64 characters.\n");
+				return INVALID_ARGUMENT_VALUE;
+			}		
+			strcpy(email, argv[argv_iterator + 1]);
+
+			// Update record of fulfilled arguments
+			fulfilled_arguments[EMAIL] = true;
+
+			// Skip next argv item, since it is just the value for the current argument
+			argv_iterator++;
+		}
+
+		// Major information
+		if( (strcmp(argv[argv_iterator], "-m") == 0) || (strcmp(argv[argv_iterator], "--major") == 0) ) {
+			if(strlen(argv[argv_iterator + 1]) >= 64) {
+				fprintf(stderr, "Major cannot be longer than 64 characters.\n");
+				return INVALID_ARGUMENT_VALUE;
+			}
+			strcpy(major, argv[argv_iterator + 1]);
+			
+			// Update record of fulfilled arguments
+			fulfilled_arguments[MAJOR] = true;
+			
+			// Skip next item, since it is just the value for the current argument
+			argv_iterator++;
+		}
+
+		// Number of tests/samples to take
+		if( (strcmp(argv[argv_iterator], "-n") == 0) || (strcmp(argv[argv_iterator], "--number") == 0) ) {
+			(*number_of_tests) = atoi(argv[argv_iterator + 1]);
+			if( (*number_of_tests) <= 0) {
+				fprintf(stderr, "The number of tests must be a non-zero positive integer.\n");
+				return INVALID_ARGUMENT_VALUE;
+			}
+
+			// Update record of fulfilled arguments
+			fulfilled_arguments[NUMBER_OF_TESTS] = true;
+
+			// Skip next item, since it is just the value for the current argument
+			argv_iterator++;
+		}
+
+		// Help text (-h or --help)
+		if( (strcmp(argv[argv_iterator], "-h") == 0) || (strcmp(argv[argv_iterator], "--help") == 0) )
+		{
+			display_help_text();
+			return INSUFFICIENT_ARGUMENTS;
+		}
+
+		argv_iterator++;
+	}
+
+	// Ensure that required arguments were provided
+	for(char i = 0; i < REQUIRED_ARGUMENTS_COUNT; i++) {
+		if(fulfilled_arguments[i] == true)
+			continue;
+
+		return INSUFFICIENT_ARGUMENTS;
+	}
+
+	return NO_ERROR;
 }
