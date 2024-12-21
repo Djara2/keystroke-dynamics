@@ -7,9 +7,12 @@
 #include <pthread.h>
 #include <string.h>
 
+#define byte unsigned char
 #define BACKSPACE 127
 #define ENTER 10
 #define REQUIRED_ARGUMENTS_COUNT 6
+#define MODULUS 211
+#define HASH_SCALAR 37 
 
 // Principal data collection object
 struct keystroke {
@@ -23,6 +26,23 @@ typedef struct {
 	int seconds;
 	pthread_mutex_t lock;
 } SharedData;
+
+struct phoneme {
+	char length;
+	char *str;
+};
+
+struct kv_pair {
+	struct phoneme *key;
+	unsigned long  *value;
+	struct kv_pair *next;
+};
+
+struct phoneme* phoneme_create(char *str, byte length);
+
+struct kv_pair *kv_pair_create(struct phoneme *key, unsigned long *value);
+
+unsigned short hash_phoneme_struct(struct phoneme p);	
 
 //                       0     1      2      3                4                5
 enum required_arguments {USER, EMAIL, MAJOR, TYPING_DURATION, NUMBER_OF_TESTS, OUTPUT_FILE_PATH};
@@ -375,4 +395,69 @@ enum system_error_code parse_command_line_arguments(int *typing_duration, char *
 	}
 
 	return NO_ERROR;
+}
+
+struct phoneme* phoneme_create(char *str, byte length) {
+	if(str == NULL) {
+		fprintf(stderr, "[phoneme_create] Cannot create a phoneme using a string that points to NULL.\n");
+		return NULL;
+	}
+	if(length <= 1) {
+		fprintf(stderr, "[phoneme_create] Cannot create a phoneme of length 0 or 1.\n");
+		return NULL;
+	}
+
+	struct phoneme *new_phoneme = malloc(sizeof(struct phoneme));
+	if(new_phoneme == NULL) {
+		fprintf(stderr, "[phoneme_create] Failed to allocate sufficient memory to create a new phoneme struct.\n");
+		return NULL;
+	}
+
+	// Set string member
+	new_phoneme->str = malloc( (sizeof(char) * length) + 1 );
+	if(new_phoneme->str == NULL) {
+		fprintf(stderr, "[phoneme_create] Failed to allocate sufficient memory to create the memory buffer for the new phoneme's string attribute.\n");
+		return NULL;
+	}
+	strcpy(new_phoneme->str, str);
+
+	// Set length member
+	new_phoneme->length = length;
+
+	return new_phoneme;
+}
+
+// key is required, but time deltas is not (it can be NULL). Just check for this later
+struct kv_pair *kv_pair_create(struct phoneme *key, unsigned long *value) {
+	if(key == NULL) {
+		fprintf(stderr, "[kv_pair_create] Cannot create a new key-value pair with a phoneme key that points to NULL.\n");
+		return NULL;
+	}
+
+	// Create new pair
+	struct kv_pair *new_kv_pair = malloc(sizeof(struct kv_pair));
+	if(new_kv_pair == NULL) {
+		fprintf(stderr, "[kv_pair_create] Failed to allocate memory for a new kv_pair struct.\n");
+		return NULL;
+	}
+
+	// Assign key and value
+	new_kv_pair->key = key;	
+	new_kv_pair->value = value; // might be NULL if creating key for first time.
+	new_kv_pair->next = NULL 
+}
+
+unsigned short hash_phoneme_struct(struct phoneme *p) {
+	if(p == NULL) {
+		fprintf(stderr, "[hash_phoneme_struct] Cannot hash phoneme struct that points to NULL.\n");
+		return -1;
+	}
+	
+	unsigned long hash = 0;
+	for(int i = 0; i < p->length; i++) 
+		hash += p->str[i];
+
+	hash *= HASH_SCALAR;
+	hash = hash % MODULUS;
+	return (unsigned short) hash;
 }
