@@ -39,6 +39,7 @@ struct kv_pair {
 };
 
 struct phoneme* phoneme_create(char *str, byte length);
+bool phoneme_compare(struct phoneme *p1, struct phoneme *p2);
 
 struct kv_pair *kv_pair_create(struct phoneme *key, unsigned long *value);
 
@@ -425,6 +426,38 @@ struct phoneme* phoneme_create(char *str, byte length) {
 	new_phoneme->length = length;
 
 	return new_phoneme;
+}
+
+bool phoneme_compare(struct phoneme *p1, struct phoneme *p2) {
+	if(p1 == NULL) {
+		fprintf(stderr, "[phoneme_compare] Cannot compare a phoneme that points to NULL");
+		return false;
+	} 
+	if(p1->str == NULL) {
+		fprintf(stderr, "[phoneme_compare] Cannot compare a phoneme with a string member that points to NULL.\n");
+		return false;
+	}
+	if(p1->length <= 1) {
+		fprintf(stderr, "[phoneme_compare] Cannot compare a phoneme with an invalid length member. Phoneme lengths must be greater than 1.\n");
+		return false;
+	}
+	if(p2 == NULL) {
+		fprintf(stderr, "[phoneme_compare] Cannot compare a phoneme that points to NULL.\n");
+		return false;
+	}
+	if(p2->str == NULL) {
+		fprintf(stderr, "[phoneme_compare] Cannot compare a phoneme with a string member that points to NULL.\n");
+		return false;
+	}
+	if(p2->length <= 1) {
+		fprintf(stderr, "[phoneme_compare] Cannot compare a phoneme with an invalid length member. Phoneme lengths must be greater than 1.\n");
+		return false;
+	}
+	
+	if(p1->length != p2->length)      return false;
+	if(strcmp(p1->str, p2->str) != 0) return false;
+
+	return true;
 }
 
 // key is required, but time deltas is not (it can be NULL). Just check for this later
