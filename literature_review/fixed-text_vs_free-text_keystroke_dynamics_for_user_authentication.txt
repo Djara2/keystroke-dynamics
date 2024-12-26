@@ -1,0 +1,4 @@
+
+This paper attempted to compare the accuracy of data for fixed-text vs free-text. The paper used four different algorithms (RF, SVM, BN, KNN) on both the fixed-text and free-text data to gather the True-positive rate, False-positive rate, ROCAUC and accuracy information. For the fixed-text data, the paper analyzed the data for the easy password "kicsikutyatarka" and the strong password ".tieRoanl" before combining algorithms and reanalyzing for both.
+
+The paper found that overall, fixed-text was significantly more accurate compared to free-text. 87.58 vs 98.83 Within fixed-text however, the accuracy actually decreased when increasing the entropy of the text (using the stronger password) and is likely because of the unfamiliarity with typing that those characters one after another that forces users to type in a slower, more careful manner that can be considered a default typing.  

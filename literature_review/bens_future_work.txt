@@ -1,0 +1,6 @@
+Idea:
+    Combine fixed-text and free-text by analyzing a hidden fixed text within the free text the user typed.
+    
+    Methods:
+        - Only analyze the typing characteristics of the words in the chosen hidden word set.
+        - Analyze the whole text, but increase the 'priority' or significance of the data for the words in the chosen hidden word set.
