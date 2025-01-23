@@ -1,0 +1,18 @@
+Concept | Content                     | Variable in code
+--------|-----------------------------|-----------------
+i       | 0   1     2       3    4    | [argv_iterator]
+argv[i] | kdt dave0 cheese0 wiz0 ham0 | [current_token]
+indices |     01234 0123456 0123 0123 | [token_iterator]
+length  |         ^       ^    ^    ^ | [token_lengths[argv_iterator]]
+argc    | 1   2     3       4    5    |  
+
+autocompletions for parameters:
+--u -> --user
+--e -> --email
+--m -> --major
+--d -> --duration
+--n -> --number
+--o -> --output 
+--f -> AMBIGUOUS --f...
+                   |i -> --fixed or --fixed-text (requires a value)
+                   |r -> --free  or --free-text  (does not require a value)
