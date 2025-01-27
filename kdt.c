@@ -64,7 +64,8 @@ struct time_delta_array* hashmap_get(struct kv_pair **hashmap, struct phoneme *k
 
 //                       0     1      2      3                4                5
 enum required_arguments {USER, EMAIL, MAJOR, TYPING_DURATION, NUMBER_OF_TESTS, OUTPUT_FILE_PATH};
-enum kdt_error {KDT_NO_ERROR, KDT_INVALID_ARGUMENT_VALUE, KDT_INVALID_OUTPUT_FILE, KDT_INSUFFICIENT_ARGUMENTS};
+enum kdt_error {KDT_NO_ERROR, KDT_INVALID_ARGUMENT, KDT_INVALID_ARGUMENT_VALUE, KDT_INVALID_OUTPUT_FILE,
+	        KDT_INSUFFICIENT_ARGUMENTS};
 
 void disable_buffering_and_echoing();
 void enable_buffering_and_echoing();
