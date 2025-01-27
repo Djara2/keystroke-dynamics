@@ -6,53 +6,6 @@
 #define MODE_FREE_TEXT 0
 #define MODE_FIXED_TEXT 1
 
-enum kdt_error set_cli_parameter(enum kdt_parameter parameter_id, void *parameter, char *value, bool *fulfilled_arguments) {
-	enum kdt_error error_code = KDT_NO_ERROR;
-
-	// more clean than using function pointers, faster switching than if-else
-	switch(parameter_id) {
-		case USER: 
-			char *user = (char *) parameter;
-			if(user == NULL) {
-				fprintf(stderr, "[set_username_from_cli] Cannot use NULL username pointer when setting username from CLI args.\n");
-				return INVALID_ARGUMENT_VALUE;
-			}
-
-			if(fulfilled_arguments == NULL) {
-				fprintf(stderr, "[set_username_from_cli] Cannot use NULL pointer for fulfilled arguments buffer.\n");
-				return INVALID_ARGUMENT_VALUE;
-			}
-
-			if(strlen(argv[value_position]) >= 64) {
-				fprintf(stderr, "[set_username_from_cli] Value for username parameter cannot be longer than 64 characters.\n");
-				return INVALID_ARGUMENT_VALUE;
-			}
-			
-			fulfilled_arguments[USER] = true;
-
-			return NO_ERROR;
-
-			break;
-		case EMAIL:
-			break;
-		case MAJOR:
-			break;
-		case DURATION:
-			break;
-		case NUMBER:
-			break;
-		case OUTPUT:
-			break;
-		case MODE:
-			break;
-		// invalid parameter ID
-		default:
-			break;
-
-	}
-	return error_code;
-}
-
 enum cli_sm_state = {   CLI_SM_START, CLI_SM_READ_PARAM, CLI_SM_READ_VALUE,
 			CLI_SM_FAST_MATCH_LONG_NAME,
 			CLI_SM_CRASH, CLI_SM_ERROR_PARAM_TOO_SHORT, CLI_SM_ERROR_INVALID_PARAM, 
