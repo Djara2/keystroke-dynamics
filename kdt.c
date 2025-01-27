@@ -64,7 +64,7 @@ struct time_delta_array* hashmap_get(struct kv_pair **hashmap, struct phoneme *k
 
 //                       0     1      2      3                4                5
 enum required_arguments {USER, EMAIL, MAJOR, TYPING_DURATION, NUMBER_OF_TESTS, OUTPUT_FILE_PATH};
-enum system_error_code  {NO_ERROR, INVALID_ARGUMENT_VALUE, INVALID_OUTPUT_FILE, INSUFFICIENT_ARGUMENTS};
+enum kdt_error {KDT_NO_ERROR, KDT_INVALID_ARGUMENT_VALUE, KDT_INVALID_OUTPUT_FILE, KDT_INSUFFICIENT_ARGUMENTS};
 
 void disable_buffering_and_echoing();
 void enable_buffering_and_echoing();
@@ -76,7 +76,7 @@ unsigned long* get_time_deltas_in_milliseconds(struct keystroke *keystrokes, siz
 void display_help_text();
 void display_environment_details(char user[], char email[], char major[], int duration, short number_of_samples);
 
-enum system_error_code parse_command_line_arguments(int *typing_duration, char *output_file_path, FILE *output_file_path_fh, 
+enum kdt_error parse_command_line_arguments(int *typing_duration, char *output_file_path, FILE *output_file_path_fh, 
 						    char *user, char *email, char *major, short *number_of_tests,
 						    int argc, char **argv);
 
@@ -95,18 +95,18 @@ int main(int argc, char **argv) {
 	char email[64];
 	char major[64];
 	short number_of_tests = 0;
-	enum system_error_code error_code = NO_ERROR;
+	enum kdt_error error_code = KDT_NO_ERROR;
 	error_code = parse_command_line_arguments(&typing_duration, output_file_path, output_file_path_fh, user, email, major, &number_of_tests, argc, argv);
 	switch(error_code) {
-		case NO_ERROR:
+		case KDT_NO_ERROR:
 			break;
 		case INVALID_ARGUMENT_VALUE:
 			exit(EXIT_FAILURE);
 			break;
-		case INVALID_OUTPUT_FILE:
+		case KDT_INVALID_OUTPUT_FILE:
 			exit(EXIT_FAILURE);
 			break;
-		case INSUFFICIENT_ARGUMENTS:
+		case KDT_INSUFFICIENT_ARGUMENTS:
 			fprintf(stderr, "Insufficient arguments were provided for the program to run. See the help text below (kdt --help)\n\n");
 			display_help_text();
 			exit(EXIT_FAILURE);
@@ -341,7 +341,7 @@ void display_environment_details(char user[], char email[], char major[], int du
 			user, email, major, duration, number_of_samples);
 }
 
-enum system_error_code parse_command_line_arguments(int *typing_duration, char *output_file_path, FILE *output_file_path_fh, 
+enum kdt_error parse_command_line_arguments(int *typing_duration, char *output_file_path, FILE *output_file_path_fh, 
 						    char *user, char *email, char *major, short *number_of_tests,
 						    int argc, char **argv) {
 	bool fulfilled_arguments[REQUIRED_ARGUMENTS_COUNT];
@@ -376,7 +376,7 @@ enum system_error_code parse_command_line_arguments(int *typing_duration, char *
 			output_file_path_fh = fopen(output_file_path, "w");
 			if(output_file_path_fh == NULL) {
 				fprintf(stderr, "Could not open file \"%s\" for writing.\n");
-				return INVALID_OUTPUT_FILE;
+				return KDT_INVALID_OUTPUT_FILE;
 			}
 			fclose(output_file_path_fh);
 			
@@ -422,7 +422,7 @@ enum system_error_code parse_command_line_arguments(int *typing_duration, char *
 		if( (strcmp(argv[argv_iterator], "-m") == 0) || (strcmp(argv[argv_iterator], "--major") == 0) ) {
 			if(strlen(argv[argv_iterator + 1]) >= 64) {
 				fprintf(stderr, "Major cannot be longer than 64 characters.\n");
-				return INVALID_ARGUMENT_VALUE;
+				return KDT_INVALID_ARGUMENT_VALUE;
 			}
 			strcpy(major, argv[argv_iterator + 1]);
 			
@@ -438,7 +438,7 @@ enum system_error_code parse_command_line_arguments(int *typing_duration, char *
 			(*number_of_tests) = atoi(argv[argv_iterator + 1]);
 			if( (*number_of_tests) <= 0) {
 				fprintf(stderr, "The number of tests must be a non-zero positive integer.\n");
-				return INVALID_ARGUMENT_VALUE;
+				return KDT_INVALID_ARGUMENT_VALUE;
 			}
 
 			// Update record of fulfilled arguments
@@ -452,7 +452,7 @@ enum system_error_code parse_command_line_arguments(int *typing_duration, char *
 		if( (strcmp(argv[argv_iterator], "-h") == 0) || (strcmp(argv[argv_iterator], "--help") == 0) )
 		{
 			display_help_text();
-			return INSUFFICIENT_ARGUMENTS;
+			return KDT_INSUFFICIENT_ARGUMENTS;
 		}
 
 		argv_iterator++;
@@ -463,10 +463,10 @@ enum system_error_code parse_command_line_arguments(int *typing_duration, char *
 		if(fulfilled_arguments[i] == true)
 			continue;
 
-		return INSUFFICIENT_ARGUMENTS;
+		return KDT_INSUFFICIENT_ARGUMENTS;
 	}
 
-	return NO_ERROR;
+	return KDT_NO_ERROR;
 }
 
 struct phoneme* phoneme_create(char *str, byte length) {

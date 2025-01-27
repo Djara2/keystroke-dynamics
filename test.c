@@ -1,6 +1,10 @@
 #include <stdint.h>
 #define SPACE ' '
 #define byte unsigned char
+#define SHORT_ID_MATCH_START 1
+#define LONG_ID_MATCH_START 2
+#define MODE_FREE_TEXT 0
+#define MODE_FIXED_TEXT 1
 
 enum kdt_error set_cli_parameter(enum kdt_parameter parameter_id, void *parameter, char *value, bool *fulfilled_arguments) {
 	enum kdt_error error_code = KDT_NO_ERROR;
@@ -49,11 +53,13 @@ enum kdt_error set_cli_parameter(enum kdt_parameter parameter_id, void *paramete
 	return error_code;
 }
 
-enum cli_sm_state = {   CLI_SM_START, CLI_SM_SHORT_ID, CLI_SM_LONG_ID, CLI_SM_READ_VALUE,
-			CLI_SM_ASSIGN_VALUE, CLI_SM_FETCH_NEXT, CLI_SM_BAD_ID, CLI_SM_BAD_VALUE };
+enum cli_sm_state = {   CLI_SM_START, CLI_SM_READ_PARAM, CLI_SM_READ_VALUE,
+			CLI_SM_FAST_MATCH_LONG_NAME,
+			CLI_SM_CRASH, CLI_SM_ERROR_PARAM_TOO_SHORT, CLI_SM_ERROR_INVALID_PARAM, 
+			CLI_SM_ERROR_PARAM_MALFORMED };
 
 enum system_error_code parse_command_line_arguments(int *typing_duration, char *output_file_path, FILE *output_file_path_fh, 
-						    char *user, char *email, char *major, short *number_of_tests,
+						    char *user, char *email, char *major, short *number_of_tests, short *duration,
 						    int argc, char **argv) {
 	
 	// Use "any" logic on this buffer. If any are false, then the program cannot run.
@@ -69,168 +75,143 @@ enum system_error_code parse_command_line_arguments(int *typing_duration, char *
 	uint8_t           token_number = 1;
 	uint16_t          token_index = 0;
 	char              *current_token = argv[token_number];
-	enum cli_sm_state current_state = CLI_SM_START;
+	enum cli_sm_state current_state = CLI_READ_PARAM;
 	enum kdt_error    error_code = KDT_NO_ERROR;
+	void              *current_parameter;
+	uint8_t           match_start_index = 1;
 	while(token_number < argc) {
+		current_token = argv[token_number];
 		switch(current_state) {
-			case CLI_SM_START:
-				// (1) length too short to be a short or long identifier (min length is 2)
-				// (2) parameters always start with at least one hyphen
-				if(token_lengths[token_number] <= 1 || current_token[0] != ' ') {
-					current_state = CLI_SM_BAD_ID; 				
+			case CLI_SM_READ_PARAM:
+				// Parameter identifiers must be at least 2 chars long.  
+				if(token_lengths[current_token] < 2) {
+					current_state = CLI_SM_ERROR_PARAM_TOO_SHORT;
+					break;
+				}
+				
+				// Parameter identifiers must start with one hyphen or two at most
+				if(current_token[0] != '-') {
+					current_state = CLI_SM_ERROR_PARAM_MALFORMED;
 					break;
 				}
 
-				// short ID
-				if(token_lengths[token_number] < 3) {	
-					current_sate = CLI_SM_SHORT_ID;
-					token_index = 1;
-					break;
-				}
+				// allows for shared logic of short ID matching
+				// and long ID autocompletion
+				if(current_token[1] == '-')
+					match_start_index = LONG_ID_MATCH_START;
+				else
+					match_start_index = SHORT_ID_MATCH_START;
 
-				// long ID
-				current_state = CLI_SM_LONG_ID;
-				token_index = 2;
-				break;	
-
-			case CLI_SM_SHORT_ID:
-				switch(current_token[token_index]) {
+				// Discern short identifier or long identifier
+				switch(current_token[match_start_index]) { 
+					// Username
 					case 'u':
-						error_code = set_username_from_cli(user, fulfilled_arguments, argv, token_number + 1);
-						// Whole state machine should not continue if there is an error with
-						// setting this value
-						if(error_code != KDT_NO_ERROR) {
-							current_state = CLI_SM_BAD_VALUE;
+						current_parameter = (void*) user;
+						token_number++;
+						break;
+
+					// Email
+					case 'e':
+						current_parameter = (void*) email;
+						token_number++;
+						break;
+
+					// Major
+					case 'm':
+						current_parameter = (void*) major;
+						token_number++;
+						break;
+
+					// Number of tests
+					case 'n':
+						current_parameter = (void*) number_of_tests;
+						token_number++;
+						break;
+
+					// Duration
+					case 'd':
+						current_parameter = (void*) duration;	
+						token_number++;
+						break;
+
+					// Output
+					case 'o':
+						current_parameter = (void*) output;
+						token_number++;
+						break;
+
+					// Free text
+					case 'f':
+						// this one has ambiguity between short and long identifiers.
+						// --f does not necessarily map to --free, it could also map 
+						//     to --fixed
+						if(match_start_index == SHORT_ID_MATCH_START) {
+							current_parameter = (void*) mode;
+							(*current_parameter) = MODE_FREE_TEXT;
+
+							// since this parameter takes no value, we skip
+							// to the next token and the mode remains in 
+							// CLI_SM_READ_PARAM
+							current_state = CLI_SM_READ_PARAM;
+							token_number++;
 							break;
 						}
-						
-						current_state = CLI_SM_START;
+						// to be either "--free" or "--fixed", the token will have to be 
+						// at least 6 characters long.
+						if(token_lengths[token_number] < 6) {
+							current_state = CLI_SM_ERROR_INVALID_PARAM;
+							break;
+						}
+
+						// long identifier autocomplete
+						switch(current_token[3]) {
+							case 'r':
+								current_parameter = (void*) mode;
+								(*current_parameter) = MODE_FREE_TEXT;
+								current_state = CLI_READ_PARAM;
+								token_number++;
+								break;
+							case 'i':
+								current_parameter = (void*) mode;
+								(*current_parameter) = MODE_FIXED_TEXT;
+								current_state = CLI_SM_READ_PARAM;
+								token_number++;
+								break;
+
+							// User misspelled ID completely
+							default:
+								current_state = CLI_SM_ERROR_INVALID_PARAM;
+								break;
+						}
 						break;
-					case 'e':
-						error_code = set_email_from_cli(user
+
+					// Fixed text
+					case 'x':
+						current_parameter = (void*) mode;
+						(*current_parameter) = MODE_FIXED_TEXT;
+						break;
+
+					// Invalid parameter
+					default:
+						current_state = CLI_SM_ERROR_INVALID_PARAM;
+						break;
 				}
+				break;
+
+			// Expecting to read a value for previously identified parameter
+			case CLI_SM_READ_VALUE:
+				break;
+			case CLI_SM_ERROR_PARAM_TOO_SHORT:
+				fprintf(stderr, "Provided parameter \"%s\" is too short. Parameters must be at least 2 characters long.\n", current_token);
+				return KDT
+				break;
+			case CLI_SM_ERROR_PARAM_MALFORMED:
+				break;
+			case CLI_SM_ERROR_INVALID_PARAM:
+				break;
+			default:
+				fprintf(stderr, "Unhandled case for state %d reached.\n", current_state);
+				break;
 		}
 	}
-		/*
-		// Typing duration argument (required) (-d or --duration)
-		if( (strcmp(argv[argv_iterator], "-d") == 0) || (strcmp(argv[argv_iterator], "--duration") == 0) )
-		{ 
-			// If the current token is -d or --duration, then the next token is surely the time (otherwise, error).
-			(*typing_duration) = atoi(argv[argv_iterator + 1]);
-			if( (*typing_duration) <= 0) {
-				fprintf(stderr, "The value for the -d or --duration flags must be a non-zero positive integer.\n");
-				return INVALID_ARGUMENT_VALUE;
-			}
-
-			// Update record of fulfilled arguments
-			fulfilled_arguments[TYPING_DURATION] = true;
-
-			// Skip next argv item, since it is just the value for the current argument
-			argv_iterator++;
-		}
-
-
-
-		// Output file argument (required) (-o or --output)
-		if( (strcmp(argv[argv_iterator], "-o") == 0) || (strcmp(argv[argv_iterator], "--output") == 0) )
-		{
-			output_file_path = argv[argv_iterator + 1];
-
-			// Check that the specified file can actually be opened
-			output_file_path_fh = fopen(output_file_path, "w");
-			if(output_file_path_fh == NULL) {
-				fprintf(stderr, "Could not open file \"%s\" for writing.\n");
-				return INVALID_OUTPUT_FILE;
-			}
-			fclose(output_file_path_fh);
-			
-			// Update record of fulfilled arguments
-			fulfilled_arguments[OUTPUT_FILE_PATH] = true;
-
-			// Skip next argv item, since it is just the value for the current argument
-			argv_iterator++;
-		}
-		
-		// User information
-		if( (strcmp(argv[argv_iterator], "-u") == 0) || (strcmp(argv[argv_iterator], "--user") == 0) )
-		{
-			if(strlen(argv[argv_iterator + 1]) >= 64) {
-				fprintf(stderr, "User identifier cannot be longer than 64 characters.\n");
-				return INVALID_ARGUMENT_VALUE;
-			}
-			strcpy(user, argv[argv_iterator + 1]);
-
-			// Update record of fulfilled arguments
-			fulfilled_arguments[USER] = true;			
-
-			// Skip next argv item, since it is just the value for the current argument.
-			argv_iterator++;
-		}
-
-		// Email information
-		if( (strcmp(argv[argv_iterator], "-e") == 0) || (strcmp(argv[argv_iterator], "--email") == 0) ) {
-			if(strlen(argv[argv_iterator + 1]) >= 64) {
-				fprintf(stderr, "Email cannot be longer than 64 characters.\n");
-				return INVALID_ARGUMENT_VALUE;
-			}		
-			strcpy(email, argv[argv_iterator + 1]);
-
-			// Update record of fulfilled arguments
-			fulfilled_arguments[EMAIL] = true;
-
-			// Skip next argv item, since it is just the value for the current argument
-			argv_iterator++;
-		}
-
-		// Major information
-		if( (strcmp(argv[argv_iterator], "-m") == 0) || (strcmp(argv[argv_iterator], "--major") == 0) ) {
-			if(strlen(argv[argv_iterator + 1]) >= 64) {
-				fprintf(stderr, "Major cannot be longer than 64 characters.\n");
-				return INVALID_ARGUMENT_VALUE;
-			}
-			strcpy(major, argv[argv_iterator + 1]);
-			
-			// Update record of fulfilled arguments
-			fulfilled_arguments[MAJOR] = true;
-			
-			// Skip next item, since it is just the value for the current argument
-			argv_iterator++;
-		}
-
-		// Number of tests/samples to take
-		if( (strcmp(argv[argv_iterator], "-n") == 0) || (strcmp(argv[argv_iterator], "--number") == 0) ) {
-			(*number_of_tests) = atoi(argv[argv_iterator + 1]);
-			if( (*number_of_tests) <= 0) {
-				fprintf(stderr, "The number of tests must be a non-zero positive integer.\n");
-				return INVALID_ARGUMENT_VALUE;
-			}
-
-			// Update record of fulfilled arguments
-			fulfilled_arguments[NUMBER_OF_TESTS] = true;
-
-			// Skip next item, since it is just the value for the current argument
-			argv_iterator++;
-		}
-
-		// Help text (-h or --help)
-		if( (strcmp(argv[argv_iterator], "-h") == 0) || (strcmp(argv[argv_iterator], "--help") == 0) )
-		{
-			display_help_text();
-			return INSUFFICIENT_ARGUMENTS;
-		}
-
-		argv_iterator++;
-	}
-
-	// Ensure that required arguments were provided
-	for(char i = 0; i < REQUIRED_ARGUMENTS_COUNT; i++) {
-		if(fulfilled_arguments[i] == true)
-			continue;
-
-		return INSUFFICIENT_ARGUMENTS;
-	}
-
-	return NO_ERROR;
-	*/
-}
 
