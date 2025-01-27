@@ -62,10 +62,16 @@ short hash_phoneme_struct(struct phoneme *p);
 bool hashmap_set(struct kv_pair **hashmap, struct phoneme *key, struct time_delta_array *value);
 struct time_delta_array* hashmap_get(struct kv_pair **hashmap, struct phoneme *key);
 
-//                       0     1      2      3                4                5
-enum required_arguments {USER, EMAIL, MAJOR, TYPING_DURATION, NUMBER_OF_TESTS, OUTPUT_FILE_PATH};
+enum required_arguments { REQUIRED_ARG_USER,		// 0
+		 	  REQUIRED_ARG_EMAIL,		// 1
+			  REQUIRED_ARG_MAJOR,		// 2
+			  REQUIRED_ARG_TYPING_DURATION, // 3
+			  REQUIRED_ARG_NUMBER_OF_TESTS, // 4
+			  REQUIRED_ARG_OUTPUT_FILE_PATH // 5
+			};
+
 enum kdt_error {KDT_NO_ERROR, KDT_INVALID_ARGUMENT, KDT_INVALID_ARGUMENT_VALUE, KDT_INVALID_OUTPUT_FILE,
-	        KDT_INSUFFICIENT_ARGUMENTS};
+	        KDT_INSUFFICIENT_ARGUMENTS, KDT_UNHANDLED_ERROR };
 
 void disable_buffering_and_echoing();
 void enable_buffering_and_echoing();
@@ -101,7 +107,7 @@ int main(int argc, char **argv) {
 	switch(error_code) {
 		case KDT_NO_ERROR:
 			break;
-		case INVALID_ARGUMENT_VALUE:
+		case KDT_INVALID_ARGUMENT_VALUE:
 			exit(EXIT_FAILURE);
 			break;
 		case KDT_INVALID_OUTPUT_FILE:
@@ -235,7 +241,7 @@ int main(int argc, char **argv) {
 			}	
 		}
 		printf("[DEBUG] Session %d's keystrokes buffer was allocated successfully!\n", session_number + 1);
-		printf("[DEBUG] Attempting to copy %d keystrokes into session %d's keystrokes buffer...\n", keystrokes_length, session_number + 1);
+		printf("[DEBUG] Attempting to copy %zu keystrokes into session %d's keystrokes buffer...\n", keystrokes_length, session_number + 1);
 		memcpy(sessions[session_number].keystrokes, keystrokes, sizeof(struct keystroke) * keystrokes_length);
 		printf("[DEBUG] Memory copied!\n");
 		sessions[session_number].keystrokes_length = keystrokes_length;
@@ -358,11 +364,11 @@ enum kdt_error parse_command_line_arguments(int *typing_duration, char *output_f
 			(*typing_duration) = atoi(argv[argv_iterator + 1]);
 			if( (*typing_duration) <= 0) {
 				fprintf(stderr, "The value for the -d or --duration flags must be a non-zero positive integer.\n");
-				return INVALID_ARGUMENT_VALUE;
+				return KDT_INVALID_ARGUMENT_VALUE;
 			}
 
 			// Update record of fulfilled arguments
-			fulfilled_arguments[TYPING_DURATION] = true;
+			fulfilled_arguments[REQUIRED_ARG_TYPING_DURATION] = true;
 
 			// Skip next argv item, since it is just the value for the current argument
 			argv_iterator++;
@@ -376,13 +382,13 @@ enum kdt_error parse_command_line_arguments(int *typing_duration, char *output_f
 			// Check that the specified file can actually be opened
 			output_file_path_fh = fopen(output_file_path, "w");
 			if(output_file_path_fh == NULL) {
-				fprintf(stderr, "Could not open file \"%s\" for writing.\n");
+				fprintf(stderr, "Could not open file \"%s\" for writing.\n", output_file_path);
 				return KDT_INVALID_OUTPUT_FILE;
 			}
 			fclose(output_file_path_fh);
 			
 			// Update record of fulfilled arguments
-			fulfilled_arguments[OUTPUT_FILE_PATH] = true;
+			fulfilled_arguments[REQUIRED_ARG_OUTPUT_FILE_PATH] = true;
 
 			// Skip next argv item, since it is just the value for the current argument
 			argv_iterator++;
@@ -393,12 +399,12 @@ enum kdt_error parse_command_line_arguments(int *typing_duration, char *output_f
 		{
 			if(strlen(argv[argv_iterator + 1]) >= 64) {
 				fprintf(stderr, "User identifier cannot be longer than 64 characters.\n");
-				return INVALID_ARGUMENT_VALUE;
+				return KDT_INVALID_ARGUMENT_VALUE;
 			}
 			strcpy(user, argv[argv_iterator + 1]);
 
 			// Update record of fulfilled arguments
-			fulfilled_arguments[USER] = true;			
+			fulfilled_arguments[REQUIRED_ARG_USER] = true;			
 
 			// Skip next argv item, since it is just the value for the current argument.
 			argv_iterator++;
@@ -408,12 +414,12 @@ enum kdt_error parse_command_line_arguments(int *typing_duration, char *output_f
 		if( (strcmp(argv[argv_iterator], "-e") == 0) || (strcmp(argv[argv_iterator], "--email") == 0) ) {
 			if(strlen(argv[argv_iterator + 1]) >= 64) {
 				fprintf(stderr, "Email cannot be longer than 64 characters.\n");
-				return INVALID_ARGUMENT_VALUE;
+				return KDT_INVALID_ARGUMENT_VALUE;
 			}		
 			strcpy(email, argv[argv_iterator + 1]);
 
 			// Update record of fulfilled arguments
-			fulfilled_arguments[EMAIL] = true;
+			fulfilled_arguments[REQUIRED_ARG_EMAIL] = true;
 
 			// Skip next argv item, since it is just the value for the current argument
 			argv_iterator++;
@@ -428,7 +434,7 @@ enum kdt_error parse_command_line_arguments(int *typing_duration, char *output_f
 			strcpy(major, argv[argv_iterator + 1]);
 			
 			// Update record of fulfilled arguments
-			fulfilled_arguments[MAJOR] = true;
+			fulfilled_arguments[REQUIRED_ARG_MAJOR] = true;
 			
 			// Skip next item, since it is just the value for the current argument
 			argv_iterator++;
@@ -443,7 +449,7 @@ enum kdt_error parse_command_line_arguments(int *typing_duration, char *output_f
 			}
 
 			// Update record of fulfilled arguments
-			fulfilled_arguments[NUMBER_OF_TESTS] = true;
+			fulfilled_arguments[REQUIRED_ARG_NUMBER_OF_TESTS] = true;
 
 			// Skip next item, since it is just the value for the current argument
 			argv_iterator++;
