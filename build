@@ -1,2 +1,18 @@
 #!/usr/bin/env bash
-gcc kdt.c -o kdt -pthread
+echo -n "Compiling libkdt..."
+if [ gcc -c libkdt.c -o libkdt.o ]; then 
+	echo "\tdone!"
+else
+	echo "Something went wrong trying to compile libkdt."
+	echo "kdt requires libkdt to compile, so compilation of kdt will not be attempted."
+	exit 1
+fi
+
+echo -n "Compiling kdt..." 
+if [ gcc kdt.c libkdt.o -o kdt -pthread ]; then
+	echo "\tdone!"
+	exit 0
+else
+	echo "Something went wrong trying to compile kdt."
+	exit 1
+fi
