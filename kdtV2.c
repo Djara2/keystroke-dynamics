@@ -96,6 +96,7 @@ enum kdt_error parse_command_line_arguments(int *typing_duration, char *output_f
 						    int argc, char **argv);
 
 int keycode_to_ascii(int keycode, int shift);
+int compare_keystrokes(const void *a, const void *b);
 
 int main(int argc, char **argv) {
 	// Provide usage instructions (e.g. --help) if no arguments are provided
@@ -187,72 +188,68 @@ int main(int argc, char **argv) {
         // Variable to track Shift state
         int shift_pressed = 0;
 
-        int ascii_values[BUFFER_SIZE];
-        int asciiIndex = 0;
+        // **Active keys map**: Track keys that are pressed but not yet released
+        struct keystroke active_keys[KEY_MAX + 1];  // Store the active keys and their press times
+        int active_keys_count = 0;
 
 		// Actually collect the raw data
 		while(timer.flag == true) {
-			if (read(fd, &ev, sizeof(struct input_event)) > 0) {
+            if (read(fd, &ev, sizeof(struct input_event)) > 0) {
                 if (ev.type == EV_KEY) {
-                    // If the key was pressed
-                    if(ev.value == 1) {
-                        if(!shift_pressed) {
-                            //gettimeofday(&keystrokes[keystrokes_length].press_time, NULL);
-                            clock_gettime( CLOCK_MONOTONIC, &(keystrokes[keystrokes_length].press_time) );
+                    // Handle Shift Modifiers (Left Shift, Right Shift)
+                    if (ev.code == KEY_LEFTSHIFT || ev.code == KEY_RIGHTSHIFT) {
+                        shift_pressed = ev.value; // Track shift key (1=pressed, 0=released)
+                        continue;
+                    }
+
+                    // Get ASCII code
+                    int ascii_character = keycode_to_ascii(ev.code, shift_pressed);
+
+                    // Key Pressed
+                    if (ev.value == 1) {
+                        clock_gettime(CLOCK_MONOTONIC, &(active_keys[ev.code].press_time));
+
+                        //printf("Key Pressed: %c\n", (char) ascii_character);
+
+                        // Handles backspace
+                        if(ascii_character == '\b' && keystrokes_length > 0) {
+                            active_keys[ev.code].c = 127;
+                            active_keys_count++;
+
+                            printf("\b \b");
+                            fflush(stdout);
+
                         }
-
-                        // If shift was used, set flag and continue
-                        if (ev.code == KEY_LEFTSHIFT || ev.code == KEY_RIGHTSHIFT) {
-                            shift_pressed = ev.value; // Track shift key (1=pressed, 0=released)
-                            continue;
-                        }
-
-                        // Handle characters when their key is pressed
-                        else{
-                            int ascii_character = keycode_to_ascii(ev.code, shift_pressed);
-
-                            if(ascii_character == '\b' && asciiIndex > 0) {
-                                printf("\b \b");
-                                fflush(stdout);
-
-                                ascii_values[asciiIndex++] = 127;
-                                keystrokes[keystrokes_length].c = 127;
-
-                            }
-                            else if(ascii_character && asciiIndex < BUFFER_SIZE - 1) {
-                                
-
-                                ascii_values[asciiIndex++] = ascii_character;
-                                keystrokes[keystrokes_length].c = ascii_character;
-
-                                // Print the typed character
-                                printf("%c", ascii_character);
-                                fflush(stdout); 
-                            }
+                        // Handles all other characters
+                        else if (ascii_character && keystrokes_length < BUFFER_SIZE - 1) {
+                            active_keys[ev.code].c = ascii_character;
+                            active_keys_count++;
+                            printf("%c", ascii_character);
+                            fflush(stdout);
                         }
 
                     }
-                    // Else if, key was released
-                    else if(ev.value == 0) {
-                        // If the key released was shift, set the flag to false (0)
-                        if (ev.code == KEY_LEFTSHIFT || ev.code == KEY_RIGHTSHIFT) {
-                            shift_pressed = ev.value; // Track shift key (1=pressed, 0=released)
-                            continue;
-                        }
+                    // Key Released
+                    else if (ev.value == 0 && active_keys[ev.code].c != 0) {
+                        clock_gettime(CLOCK_MONOTONIC, &(active_keys[ev.code].release_time));
+                        //printf("Key Released: %c\n", (char) active_keys[ev.code].c);
 
-                        // Else, handle the release of the keys
-                        else {
-                            //gettimeofday(&keystrokes[keystrokes_length].release_time, NULL);
-                            clock_gettime( CLOCK_MONOTONIC, &(keystrokes[keystrokes_length].release_time) );
-                            if(asciiIndex != 0) {
-                                keystrokes_length++;
-                            }
-                            
-                        }
+                        // Store the full keystroke in the keystrokes array
+                        keystrokes[keystrokes_length] = active_keys[ev.code];
+                        keystrokes_length++;
+
+                        // Clear active key after release
+                        active_keys[ev.code].c = 0; // Clear active key
+                        active_keys_count--;
                     }
                 }
             }
-		}
+    
+        }
+
+        close(fd);
+        // Sort keystrokes based on press time to ensure correct order
+        qsort(keystrokes, keystrokes_length, sizeof(struct keystroke), compare_keystrokes);
 		
 		// Restore canonical mode and echoing
 		fflush(stdout);
@@ -261,22 +258,10 @@ int main(int argc, char **argv) {
 		// Print the numeric values of keys pressed for current session
 		printf("\nNumeric codes entered:\n");
 		printf("\n%d", (int) keystrokes[0].c);
-		for(size_t i = 1; i < keystrokes_length ; i++) 
+		for(size_t i = 1; i < keystrokes_length ; i++)
 			printf(", %d", (int) keystrokes[i].c);
 
 		printf("\n");
-
-        /*
-        // Print the ASCII values array at the end (after typing is done)
-        printf("\nASCII Values of Typed Keys: \n");
-        fflush(stdout);
-        for (int i = 0; i < asciiIndex; i++) {
-            printf("%d ", ascii_values[i]);
-            fflush(stdout);
-        }
-        printf("\n");
-        fflush(stdout);
-        */
 
 		// Get time deltas for current session
 		dwell_times = get_dwell_times_in_milliseconds(keystrokes, keystrokes_length);
@@ -300,7 +285,7 @@ int main(int argc, char **argv) {
         // Print the flight times
 		printf("\nFlight Times:\n");
 		printf("%ld", flight_times[0]);
-		for(size_t i = 1; i < keystrokes_length; i++) 
+		for(size_t i = 1; i < keystrokes_length - 1; i++) 
 			printf(", %ld", flight_times[i]);
 
 		printf("\n");
@@ -405,17 +390,30 @@ unsigned long* get_dwell_times_in_milliseconds(struct keystroke *keystrokes, siz
 unsigned long* get_flight_times_in_milliseconds(struct keystroke *keystrokes, size_t keystrokes_length) {
 	if(keystrokes == NULL) return NULL;
 		
-	unsigned long *time_deltas = malloc(sizeof(unsigned long) * (keystrokes_length));
+	unsigned long *time_deltas = malloc(sizeof(unsigned long) * (keystrokes_length - 1));
 	if(time_deltas == NULL) {
 		printf("Error allocating memory for time deltas buffer.\n");
 		return NULL;
 	}
 
-	for(size_t i = 0; i < keystrokes_length; i++) {
-		unsigned long whole_seconds_difference_in_ms = 1000 * (keystrokes[i + 1].press_time.tv_sec - keystrokes[i].release_time.tv_sec);
-		unsigned long nanoseconds_difference_in_ms   = (keystrokes[i + 1].press_time.tv_nsec - keystrokes[i].release_time.tv_nsec) / 1000000;
+    if(keystrokes_length >= 2) {
+        for(size_t i = 0; i < keystrokes_length - 1; i++) {
+            if(keystrokes[i + 1].press_time.tv_sec > keystrokes[i].release_time.tv_sec ||
+        keystrokes[i + 1].press_time.tv_nsec > keystrokes[i].release_time.tv_nsec) {
+                unsigned long whole_seconds_difference_in_ms = 1000 * (keystrokes[i + 1].press_time.tv_sec - keystrokes[i].release_time.tv_sec);
+                unsigned long nanoseconds_difference_in_ms   = (keystrokes[i + 1].press_time.tv_nsec - keystrokes[i].release_time.tv_nsec) / 1000000;
+                time_deltas[i] = whole_seconds_difference_in_ms + nanoseconds_difference_in_ms;
 		time_deltas[i] = whole_seconds_difference_in_ms + nanoseconds_difference_in_ms;	
-	}
+                time_deltas[i] = whole_seconds_difference_in_ms + nanoseconds_difference_in_ms;
+            }
+            else {
+                unsigned long whole_seconds_difference_in_ms = 1000 * (keystrokes[i].release_time.tv_sec - keystrokes[i + 1].press_time.tv_sec);
+                unsigned long nanoseconds_difference_in_ms   = (keystrokes[i].release_time.tv_nsec - keystrokes[i + 1].press_time.tv_nsec) / 1000000;
+                time_deltas[i] = whole_seconds_difference_in_ms + nanoseconds_difference_in_ms;
+            }
+	    }
+    }
+	
 
 	return time_deltas;
 }
@@ -833,4 +831,23 @@ int keycode_to_ascii(int keycode, int shift) {
 
     if (keycode < 0 || keycode > KEY_MAX) return 0;  // Ignore invalid keycodes
     return shift ? upper_map[keycode] : lower_map[keycode];
+}
+
+int compare_keystrokes(const void *a, const void *b) {
+    const struct keystroke *ka = (const struct keystroke *)a;
+    const struct keystroke *kb = (const struct keystroke *)b;
+    
+    // Compare based on press time
+    if (ka->press_time.tv_sec < kb->press_time.tv_sec)
+        return -1;
+    if (ka->press_time.tv_sec > kb->press_time.tv_sec)
+        return 1;
+
+    // If the seconds are equal, compare nanoseconds
+    if (ka->press_time.tv_nsec < kb->press_time.tv_nsec)
+        return -1;
+    if (ka->press_time.tv_nsec > kb->press_time.tv_nsec)
+        return 1;
+
+    return 0;
 }
