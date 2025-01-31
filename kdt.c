@@ -36,8 +36,8 @@ struct time_delta_array {
 	unsigned long *values;
 	size_t length;
 	size_t capacity;
-}
-;
+};
+
 struct kv_pair {
 	struct phoneme *key;
 	struct time_delta_array *value;
