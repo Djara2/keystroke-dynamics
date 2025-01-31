@@ -129,7 +129,7 @@ void display_environment_details(char user[], char email[], char major[], int du
 	);
 }
 
-enum kdt_error parse_command_line_arguments(char *user, char *email, char *major, byte *mode, short *number_of_tests, short *typing_duration, char *device_file_path, FILE *device_file_fh, char *output_file_path, FILE *output_file_fh, int argc, char **argv) {	
+enum kdt_error parse_command_line_arguments(char *user, char *email, char *major, byte *mode, short *number_of_tests, short *typing_duration, char *device_file_path, char *output_file_path, FILE *output_file_fh, int argc, char **argv) {	
 	// Use "any" logic on this buffer. If any are false, then the program cannot run.
 	bool fulfilled_arguments[REQUIRED_ARGUMENTS_COUNT];
 	for(char i = 0; i < REQUIRED_ARGUMENTS_COUNT; i++) 
@@ -486,6 +486,7 @@ enum kdt_error parse_command_line_arguments(char *user, char *email, char *major
 							current_state = CLI_SM_ERROR_VALUE_RESOURCE_NON_WRITABLE;
 							break;
 						}
+						fclose(output_file_fh);
 						
 						// Set value
 						strcpy(output_file_path, current_token);

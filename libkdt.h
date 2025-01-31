@@ -123,7 +123,7 @@ unsigned long* get_flight_times_in_milliseconds(struct keystroke *keystrokes, si
 void display_help_text();
 void display_environment_details(char user[], char email[], char major[], int duration, short number_of_samples, char output_file_path[], char device_file_path[], byte mode);
 
-enum kdt_error parse_command_line_arguments(char *user, char *email, char *major, byte *mode, short *number_of_tests, short *typign_duration, char *device_file_path, FILE *device_file_fh, char *output_file_path, FILE *output_file_fh, int argc, char **argv); 
+enum kdt_error parse_command_line_arguments(char *user, char *email, char *major, byte *mode, short *number_of_tests, short *typing_duration, char *device_file_path, char *output_file_path, FILE *output_file_fh, int argc, char **argv); 
 
 int keycode_to_ascii(int keycode, int shift);
 int compare_keystrokes(const void *a, const void *b);
