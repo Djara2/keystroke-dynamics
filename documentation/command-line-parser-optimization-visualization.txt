@@ -10,7 +10,9 @@ autocompletions for parameters:
 --u -> --user
 --e -> --email
 --m -> --major
---d -> --duration
+--d -> AMBIGUOUS --d...
+		   | u -> --duration     (-d)
+		   | e -> --device-file  (-v)
 --n -> --number
 --o -> --output 
 --f -> AMBIGUOUS --f...
