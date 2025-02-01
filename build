@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-echo -n "Compiling libkdt..."
+echo -n "Compiling libkdt... "
 if gcc -c libkdt.c -o libkdt.o ; then 
-	echo "\tdone!"
+	echo "done!"
 else
 	echo "Something went wrong trying to compile libkdt."
 	echo "kdt requires libkdt to compile, so compilation of kdt will not be attempted."
 	exit 1
 fi
 
-echo -n "Compiling kdt..." 
-if gcc kdtV2.c libkdt.o -o kdtv2 -pthread ; then
-	echo "\tdone!"
+echo -n "Compiling kdt... " 
+if gcc kdt.c libkdt.o -o kdt -pthread ; then
+	echo "done!"
 	exit 0
 else
 	echo "Something went wrong trying to compile kdt."
