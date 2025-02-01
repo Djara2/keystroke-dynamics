@@ -35,6 +35,10 @@ int main(int argc, char **argv) {
 	switch(error_code) {
 		case KDT_NO_ERROR:
 			break;
+		case KDT_HELP_REQUEST:
+			display_help_text();
+			exit(EXIT_FAILURE);
+			break;
 		case KDT_INVALID_ARGUMENT_VALUE:
 			exit(EXIT_FAILURE);
 			break;

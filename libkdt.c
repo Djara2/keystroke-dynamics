@@ -88,6 +88,10 @@ unsigned long* get_flight_times_in_milliseconds(struct keystroke *keystrokes, si
 
 void display_help_text() {
 	FILE *help_fh = fopen("res/help.txt", "r");
+	if(help_fh == NULL) {
+		fprintf(stderr, "Failed to open res/help.txt. Was the file deleted or moved?\n");
+		return;
+	}
 	size_t help_fh_contents_length = 0;
 	size_t help_fh_contents_capacity = 512;
 	char *help_fh_contents = malloc(sizeof(char) * help_fh_contents_capacity);
@@ -178,12 +182,16 @@ enum kdt_error parse_command_line_arguments(char *user, char *email, char *major
 
 				// Discern short identifier or long identifier
 				switch(current_token[match_start_index]) { 
+					// Help
+					case 'h': 
+						// No need to go to next token or adjust parameter
+						// type, just display help text and exit program.
+						current_state = CLI_SM_DISPLAY_HELP_TEXT;
+						break;
 					// Username
 					case 'u':
 						current_parameter_type = KDT_PARAM_USER;
 						current_state = CLI_SM_READ_VALUE;
-
-						debug_state(current_token, current_parameter_type, current_state);
 
 						token_number++;
 						break;
@@ -533,6 +541,10 @@ enum kdt_error parse_command_line_arguments(char *user, char *email, char *major
 						current_state = CLI_SM_READ_PARAM;
 						break;
 				}
+				break;
+
+			case CLI_SM_DISPLAY_HELP_TEXT:
+				return KDT_HELP_REQUEST;
 				break;
 
 			case CLI_SM_ERROR_PARAM_TOO_SHORT:
