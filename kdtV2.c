@@ -102,8 +102,9 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        // Variable to track Shift state
+        // Variables to track Shift state and Caps toggle
         int shift_pressed = 0;
+        int caps_lock = 0;
 
         // **Active keys map**: Track keys that are pressed but not yet released
         struct keystroke active_keys[KEY_MAX + 1];  // Store the active keys and their press times
@@ -115,18 +116,23 @@ int main(int argc, char **argv) {
                 if (ev.type == EV_KEY) {
                     // Handle Shift Modifiers (Left Shift, Right Shift)
                     if (ev.code == KEY_LEFTSHIFT || ev.code == KEY_RIGHTSHIFT) {
-                        shift_pressed = ev.value; // Track shift key (1=pressed, 0=released)
+                        // Track if the shift key is being held or released
+                        shift_pressed = ev.value;
+                        continue;
+                    }
+                    // Handle Capslock toggle (Pressing the capslock key)
+                    else if(ev.code == KEY_CAPSLOCK && ev.value == 1) {
+                        // Toggle stored flag
+                        caps_lock = !caps_lock;
                         continue;
                     }
 
-                    // Get ASCII code
-                    int ascii_character = keycode_to_ascii(ev.code, shift_pressed);
+                    // Get ASCII code based on modifers (shift and capslock)
+                    int ascii_character = keycode_to_ascii(ev.code, shift_pressed, caps_lock);
 
                     // Key Pressed
                     if (ev.value == 1) {
                         clock_gettime(CLOCK_MONOTONIC, &(active_keys[ev.code].press_time));
-
-                        //printf("Key Pressed: %c\n", (char) ascii_character);
 
                         // Handles backspace
                         if(ascii_character == '\b' && keystrokes_length > 0) {
@@ -146,10 +152,9 @@ int main(int argc, char **argv) {
                         }
 
                     }
-                    // Key Released
-                    else if (ev.value == 0 && active_keys[ev.code].c != 0) {
+                    // Key Released AND it is in active keys with a already set character
+                    else if (ev.value == 0 && (int) active_keys[ev.code].c != 0) {
                         clock_gettime(CLOCK_MONOTONIC, &(active_keys[ev.code].release_time));
-                        //printf("Key Released: %c\n", (char) active_keys[ev.code].c);
 
                         // Store the full keystroke in the keystrokes array
                         keystrokes[keystrokes_length] = active_keys[ev.code];
@@ -164,6 +169,7 @@ int main(int argc, char **argv) {
     
         }
 
+        // Close the event file we are reading from
         close(fd);
         // Sort keystrokes based on press time to ensure correct order
         qsort(keystrokes, keystrokes_length, sizeof(struct keystroke), compare_keystrokes);
