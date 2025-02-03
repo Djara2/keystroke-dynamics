@@ -24,7 +24,8 @@ enum kdt_error       {  KDT_NO_ERROR,
 			KDT_INVALID_ARGUMENT_VALUE,
 			KDT_INVALID_OUTPUT_FILE,
 			KDT_INSUFFICIENT_ARGUMENTS,
-			KDT_UNHANDLED_ERROR
+			KDT_UNHANDLED_ERROR,
+			KDT_HELP_REQUEST
 		     };
 
 enum cli_sm_state    {  CLI_SM_START,
@@ -39,7 +40,9 @@ enum cli_sm_state    {  CLI_SM_START,
 			CLI_SM_ERROR_NAN,
 			CLI_SM_ERROR_VALUE_RESOURCE_NON_EXISTENT, 
 			CLI_SM_ERROR_VALUE_RESOURCE_NON_READABLE,
-			CLI_SM_ERROR_VALUE_RESOURCE_NON_WRITABLE
+			CLI_SM_ERROR_VALUE_RESOURCE_NON_WRITABLE,
+
+			CLI_SM_DISPLAY_HELP_TEXT
 		     };
                                       
 enum kdt_parameter   {  KDT_PARAM_NONE,         // 0
@@ -123,9 +126,9 @@ unsigned long* get_flight_times_in_milliseconds(struct keystroke *keystrokes, si
 void display_help_text();
 void display_environment_details(char user[], char email[], char major[], int duration, short number_of_samples, char output_file_path[], char device_file_path[], byte mode);
 
-enum kdt_error parse_command_line_arguments(char *user, char *email, char *major, byte *mode, short *number_of_tests, short *typign_duration, char *device_file_path, FILE *device_file_fh, char *output_file_path, FILE *output_file_fh, int argc, char **argv); 
+enum kdt_error parse_command_line_arguments(char *user, char *email, char *major, byte *mode, short *number_of_tests, short *typing_duration, char *device_file_path, char *output_file_path, FILE *output_file_fh, int argc, char **argv); 
 
-int keycode_to_ascii(int keycode, int shift);
+int keycode_to_ascii(int keycode, int shift, int caps_lock);
 int compare_keystrokes(const void *a, const void *b);
 
 #endif

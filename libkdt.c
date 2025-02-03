@@ -88,6 +88,10 @@ unsigned long* get_flight_times_in_milliseconds(struct keystroke *keystrokes, si
 
 void display_help_text() {
 	FILE *help_fh = fopen("res/help.txt", "r");
+	if(help_fh == NULL) {
+		fprintf(stderr, "Failed to open res/help.txt. Was the file deleted or moved?\n");
+		return;
+	}
 	size_t help_fh_contents_length = 0;
 	size_t help_fh_contents_capacity = 512;
 	char *help_fh_contents = malloc(sizeof(char) * help_fh_contents_capacity);
@@ -129,7 +133,7 @@ void display_environment_details(char user[], char email[], char major[], int du
 	);
 }
 
-enum kdt_error parse_command_line_arguments(char *user, char *email, char *major, byte *mode, short *number_of_tests, short *typing_duration, char *device_file_path, FILE *device_file_fh, char *output_file_path, FILE *output_file_fh, int argc, char **argv) {	
+enum kdt_error parse_command_line_arguments(char *user, char *email, char *major, byte *mode, short *number_of_tests, short *typing_duration, char *device_file_path, char *output_file_path, FILE *output_file_fh, int argc, char **argv) {	
 	// Use "any" logic on this buffer. If any are false, then the program cannot run.
 	bool fulfilled_arguments[REQUIRED_ARGUMENTS_COUNT];
 	for(char i = 0; i < REQUIRED_ARGUMENTS_COUNT; i++) 
@@ -178,12 +182,16 @@ enum kdt_error parse_command_line_arguments(char *user, char *email, char *major
 
 				// Discern short identifier or long identifier
 				switch(current_token[match_start_index]) { 
+					// Help
+					case 'h': 
+						// No need to go to next token or adjust parameter
+						// type, just display help text and exit program.
+						current_state = CLI_SM_DISPLAY_HELP_TEXT;
+						break;
 					// Username
 					case 'u':
 						current_parameter_type = KDT_PARAM_USER;
 						current_state = CLI_SM_READ_VALUE;
-
-						debug_state(current_token, current_parameter_type, current_state);
 
 						token_number++;
 						break;
@@ -486,6 +494,7 @@ enum kdt_error parse_command_line_arguments(char *user, char *email, char *major
 							current_state = CLI_SM_ERROR_VALUE_RESOURCE_NON_WRITABLE;
 							break;
 						}
+						fclose(output_file_fh);
 						
 						// Set value
 						strcpy(output_file_path, current_token);
@@ -532,6 +541,10 @@ enum kdt_error parse_command_line_arguments(char *user, char *email, char *major
 						current_state = CLI_SM_READ_PARAM;
 						break;
 				}
+				break;
+
+			case CLI_SM_DISPLAY_HELP_TEXT:
+				return KDT_HELP_REQUEST;
 				break;
 
 			case CLI_SM_ERROR_PARAM_TOO_SHORT:
@@ -798,54 +811,85 @@ struct time_delta_array* hashmap_get(struct kv_pair **hashmap, struct phoneme *k
 }
 
 // Convert keycode to ASCII considering Shift
-int keycode_to_ascii(int keycode, int shift) {
+int keycode_to_ascii(int keycode, int shift, int caps_lock) {
     static char lower_map[KEY_MAX + 1] = {0};
     static char upper_map[KEY_MAX + 1] = {0};
+    static int initialized = 0;  // Flag to check if initialized
 
     // Populate lower_map (normal keys)
-    lower_map[KEY_1] = '1'; lower_map[KEY_2] = '2'; lower_map[KEY_3] = '3';
-    lower_map[KEY_4] = '4'; lower_map[KEY_5] = '5'; lower_map[KEY_6] = '6';
-    lower_map[KEY_7] = '7'; lower_map[KEY_8] = '8'; lower_map[KEY_9] = '9';
-    lower_map[KEY_0] = '0';
+    if(!initialized) {
+        initialized = 1;
 
-    lower_map[KEY_Q] = 'q'; lower_map[KEY_W] = 'w'; lower_map[KEY_E] = 'e';
-    lower_map[KEY_R] = 'r'; lower_map[KEY_T] = 't'; lower_map[KEY_Y] = 'y';
-    lower_map[KEY_U] = 'u'; lower_map[KEY_I] = 'i'; lower_map[KEY_O] = 'o';
-    lower_map[KEY_P] = 'p';
+        lower_map[KEY_1] = '1'; lower_map[KEY_2] = '2'; lower_map[KEY_3] = '3';
+        lower_map[KEY_4] = '4'; lower_map[KEY_5] = '5'; lower_map[KEY_6] = '6';
+        lower_map[KEY_7] = '7'; lower_map[KEY_8] = '8'; lower_map[KEY_9] = '9';
+        lower_map[KEY_0] = '0';
 
-    lower_map[KEY_A] = 'a'; lower_map[KEY_S] = 's'; lower_map[KEY_D] = 'd';
-    lower_map[KEY_F] = 'f'; lower_map[KEY_G] = 'g'; lower_map[KEY_H] = 'h';
-    lower_map[KEY_J] = 'j'; lower_map[KEY_K] = 'k'; lower_map[KEY_L] = 'l';
+        lower_map[KEY_Q] = 'q'; lower_map[KEY_W] = 'w'; lower_map[KEY_E] = 'e';
+        lower_map[KEY_R] = 'r'; lower_map[KEY_T] = 't'; lower_map[KEY_Y] = 'y';
+        lower_map[KEY_U] = 'u'; lower_map[KEY_I] = 'i'; lower_map[KEY_O] = 'o';
+        lower_map[KEY_P] = 'p';
 
-    lower_map[KEY_Z] = 'z'; lower_map[KEY_X] = 'x'; lower_map[KEY_C] = 'c';
-    lower_map[KEY_V] = 'v'; lower_map[KEY_B] = 'b'; lower_map[KEY_N] = 'n';
-    lower_map[KEY_M] = 'm';
+        lower_map[KEY_A] = 'a'; lower_map[KEY_S] = 's'; lower_map[KEY_D] = 'd';
+        lower_map[KEY_F] = 'f'; lower_map[KEY_G] = 'g'; lower_map[KEY_H] = 'h';
+        lower_map[KEY_J] = 'j'; lower_map[KEY_K] = 'k'; lower_map[KEY_L] = 'l';
 
-    lower_map[KEY_SPACE] = ' ';
-    lower_map[KEY_ENTER] = '\n';
-    lower_map[KEY_BACKSPACE] = '\b';
+        lower_map[KEY_Z] = 'z'; lower_map[KEY_X] = 'x'; lower_map[KEY_C] = 'c';
+        lower_map[KEY_V] = 'v'; lower_map[KEY_B] = 'b'; lower_map[KEY_N] = 'n';
+        lower_map[KEY_M] = 'm';
 
-    // Populate upper_map (Shifted keys)
-    upper_map[KEY_1] = '!'; upper_map[KEY_2] = '@'; upper_map[KEY_3] = '#';
-    upper_map[KEY_4] = '$'; upper_map[KEY_5] = '%'; upper_map[KEY_6] = '^';
-    upper_map[KEY_7] = '&'; upper_map[KEY_8] = '*'; upper_map[KEY_9] = '(';
-    upper_map[KEY_0] = ')';
+        lower_map[KEY_SPACE] = ' ';
+        lower_map[KEY_ENTER] = '\n';
+        lower_map[KEY_BACKSPACE] = '\b';
 
-    upper_map[KEY_Q] = 'Q'; upper_map[KEY_W] = 'W'; upper_map[KEY_E] = 'E';
-    upper_map[KEY_R] = 'R'; upper_map[KEY_T] = 'T'; upper_map[KEY_Y] = 'Y';
-    upper_map[KEY_U] = 'U'; upper_map[KEY_I] = 'I'; upper_map[KEY_O] = 'O';
-    upper_map[KEY_P] = 'P';
+        // Populate upper_map (Shifted keys)
+        upper_map[KEY_1] = '!'; upper_map[KEY_2] = '@'; upper_map[KEY_3] = '#';
+        upper_map[KEY_4] = '$'; upper_map[KEY_5] = '%'; upper_map[KEY_6] = '^';
+        upper_map[KEY_7] = '&'; upper_map[KEY_8] = '*'; upper_map[KEY_9] = '(';
+        upper_map[KEY_0] = ')';
 
-    upper_map[KEY_A] = 'A'; upper_map[KEY_S] = 'S'; upper_map[KEY_D] = 'D';
-    upper_map[KEY_F] = 'F'; upper_map[KEY_G] = 'G'; upper_map[KEY_H] = 'H';
-    upper_map[KEY_J] = 'J'; upper_map[KEY_K] = 'K'; upper_map[KEY_L] = 'L';
+        upper_map[KEY_Q] = 'Q'; upper_map[KEY_W] = 'W'; upper_map[KEY_E] = 'E';
+        upper_map[KEY_R] = 'R'; upper_map[KEY_T] = 'T'; upper_map[KEY_Y] = 'Y';
+        upper_map[KEY_U] = 'U'; upper_map[KEY_I] = 'I'; upper_map[KEY_O] = 'O';
+        upper_map[KEY_P] = 'P';
 
-    upper_map[KEY_Z] = 'Z'; upper_map[KEY_X] = 'X'; upper_map[KEY_C] = 'C';
-    upper_map[KEY_V] = 'V'; upper_map[KEY_B] = 'B'; upper_map[KEY_N] = 'N';
-    upper_map[KEY_M] = 'M';
+        upper_map[KEY_A] = 'A'; upper_map[KEY_S] = 'S'; upper_map[KEY_D] = 'D';
+        upper_map[KEY_F] = 'F'; upper_map[KEY_G] = 'G'; upper_map[KEY_H] = 'H';
+        upper_map[KEY_J] = 'J'; upper_map[KEY_K] = 'K'; upper_map[KEY_L] = 'L';
+
+        upper_map[KEY_Z] = 'Z'; upper_map[KEY_X] = 'X'; upper_map[KEY_C] = 'C';
+        upper_map[KEY_V] = 'V'; upper_map[KEY_B] = 'B'; upper_map[KEY_N] = 'N';
+        upper_map[KEY_M] = 'M';
+
+        upper_map[KEY_SPACE] = ' ';
+        upper_map[KEY_ENTER] = '\n';
+        upper_map[KEY_BACKSPACE] = '\b';
+    }
 
     if (keycode < 0 || keycode > KEY_MAX) return 0;  // Ignore invalid keycodes
-    return shift ? upper_map[keycode] : lower_map[keycode];
+
+    // Handle Caps Lock + Shift behavior
+    if (caps_lock && shift) {
+        if (lower_map[keycode] >= 'a' && lower_map[keycode] <= 'z') {
+            return lower_map[keycode]; // Letters stay lowercase
+        } else {
+            return upper_map[keycode]; // Symbols follow Shift behavior
+        }
+    }
+    // Handle Caps Lock without Shift
+    else if (caps_lock) {
+        if (lower_map[keycode] >= 'a' && lower_map[keycode] <= 'z') {
+            return upper_map[keycode]; // Letters become uppercase
+        } else {
+            return lower_map[keycode]; // Non-letters stay the same
+        }
+    }
+    // Handle Shift without Caps Lock
+    else if (shift) {
+        return upper_map[keycode];
+    }
+    // Default (lowercase)
+    return lower_map[keycode];
 }
 
 int compare_keystrokes(const void *a, const void *b) {

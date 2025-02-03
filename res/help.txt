@@ -1,22 +1,33 @@
 Usage: kdt [OPTIONS]... [FILE] 
-Collect keystroke dynamics from a user.
+Collect keystroke dynamics from a user.This program requires superuser
+permissions, because it reads events from device files in /dev/input/
 
 Required arguments:
-	-u, --user			the identifier for the person taking the typing examination.
+	-u, --user 	           [TEXT]	the identifier for the person taking the typing examination.
 
-	-e, --email			the username and domain at which the person identified by the -u or --user arguments
-					may be reached, after the typing examination.
+	-e, --email 		   [TEXT]	the username and domain at which the person identified by the -u or --user arguments
+						may be reached, after the typing examination.
 
-	-m, --major			the educational major or professional occupation of the person taking the typing examination.
+	-m, --major 	           [TEXT]	the educational major or professional occupation of the person taking the typing examination.
 
-	-d, --duration			the amount of seconds for which the data collection will occur. 
+	-d, --duration 		   [INTEGER]	the amount of seconds for which the data collection will occur. 
 
-	-n, --number			the amount of typing exams the individual will take in the session.
+	-n, --number 		   [INTEGER]	the amount of typing exams the individual will take in the session.
 
-	-o, --output			the name of the file to which typing data will be written in CSV format.
+	-o, --output 	           [FILE]	the name of the file to which typing data will be written in CSV format.
 
+	EITHER -f, --free-text     [NONE] 	use free-text data collection, instead of fixed-text.
+	OR     -x, --fixed-text    [TEXT]	use fixed-text data collection, instead of free-text.
+
+	-v, --device-file          [FILE]	the device file that corresponds to your machine's keyboard. 
+						You can browse these files in /dev/input
+	
 Examples:
-  kdt -u dave -e dave@coolmail.com -m "computer science" -d 60 -n 10 -o dave.csv  
-  kdt --user dave --email dave@coolmail.com --major "computer science" --duration 60 --number 10 --output dave.csv
+  Using short style:
+  	sudo kdt -u dave -e dave@coolmail.com -m "computer science" -d 60 -n 10 -o dave.bin -f -v /dev/input/event10
 
-BCDE Group 2024-2025
+  Using long style:
+  	sudo kdt --user dave --email dave@coolmail.com --major "computer science" --duration 60 --number 10 --output dave.csv \
+	  	 --free-text --device-file /dev/input/event10
+
+Runtime Terror/BCDE Group 2024-2025
