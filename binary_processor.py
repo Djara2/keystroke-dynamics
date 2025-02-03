@@ -1,8 +1,7 @@
 # phase 1, parse binary data
 # phase 2, put it into dictionary
 
-import struct
-
+from sys import argv
 import struct
 
 def read_keystroke_logger(filename):
@@ -70,3 +69,42 @@ def generate_keystroke_hashmap(sessions):
 # Example usage:
 # sessions_data = read_keystroke_logger('keystroke_data.bin')
 # keystroke_hashmaps = generate_keystroke_hashmap(sessions_data)
+
+def print_help():
+    print("Usage: python3 [OPTIONS] ... [FILE]\n\nRequired arguments:\n\t-o, --output\t\tthe name of the file to which the processed data will be written. Must be the last argument.\n\nOptional arguments:\n\t-i, --input\t\tthe name of the file to be used as the input for data processing.\n\n\t-h, -help\t\tto see this message again.\n")
+    exit()
+
+
+if __name__ == "__main__":
+    # -i or --input  everything after is filepath(s)
+    # -o or --output end, exactly 1 token after
+    input_file = "kdt"
+    argc = len(argv)
+    if(argc < 3):
+        print_help()
+    if(argv[argc-2] != "-o"):
+        print("[Command Error] Must include output file as last argument.")
+        print_help()
+    for i in range(argc):
+        if(argv[i].lower() in ("-h", "--help")):
+            print_help()
+        elif(argv[i] in ("-i", "--input")):
+            try:
+                input_file = argv[i+1]
+                if(input_file == None):
+                    print("[Input Error] Provided file is empty.\n")
+                else:
+                    session = read_keystroke_logger(input_file)
+                    hashmap = generate_keystroke_hashmap(session)
+            except:
+                print("[Input Error] The file provided produced an error.\n")
+                print_help()
+        elif(argv[i] in ("-o", "--output")):
+            try:
+                output_file = argv[i+1]
+                with open(output_file, "w") as out:
+                    out.write(hashmap)
+            except:
+                print("[Output Error] Output could not be written to.\n")
+        else:
+            pass
