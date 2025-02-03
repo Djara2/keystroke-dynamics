@@ -11,6 +11,32 @@
 #include <fcntl.h>
 #include "libkdt.h"
 
+// Session structs are put on the stack, so they don't need to be freed, 
+// but their members do need to be freed.
+void cleanup(struct session *sessions, size_t sessions_length) {
+	struct session *current_session; 
+	for(size_t i = 0; i < sessions_length; i++) {
+		current_session = &sessions[i];
+
+		// (1) Free keystrokes
+		if(current_session->keystrokes != NULL)
+			free(current_session->keystrokes);
+
+		// (2) Free time deltas
+		if(current_session->time_deltas != NULL) 
+			free(current_session->time_deltas);
+
+		// (3) Free dwell times 
+		if(current_session->dwell_times != NULL) 
+			free(current_session->dwell_times);
+		
+		// (4) Free flight times
+		if(current_session->flight_times != NULL) 
+			free(current_session->flight_times);
+	}
+}
+
+
 int main(int argc, char **argv) {
 	// Provide usage instructions (e.g. --help) if no arguments are provided
 	if(argc < 2) {
@@ -28,7 +54,6 @@ int main(int argc, char **argv) {
 	char output_file_path[64];
 	FILE *output_file_fh = NULL;
 	char device_file_path[64];
-	// FILE *device_file_fh = NULL; "I think this is replaced by int fd, created by cordus" - Dave
 	byte mode = MODE_FREE_TEXT;
 
 	error_code = parse_command_line_arguments(user, email, major, &mode, &number_of_tests, &typing_duration, device_file_path, output_file_path, output_file_fh, argc, argv);
@@ -78,13 +103,18 @@ int main(int argc, char **argv) {
 
 	struct session sessions[number_of_tests];
 	byte sessions_length = 0;
+	unsigned long *time_deltas;
 	unsigned long *dwell_times;
     	unsigned long *flight_times;
+
+	// Variables to track Shift state and Caps toggle
+	int shift_pressed = 0;
+	int caps_lock = 0;
 
 	pthread_t timer_thread;
 	for(int session_number = 0; session_number < number_of_tests; session_number++) {
 		// Prompt
-		printf("rawInputTool$ "); 
+		printf("kdt$ "); 
 		fflush(stdout);
 
 		// Enter non-canonical mode without echoing to collect raw data
@@ -96,88 +126,90 @@ int main(int argc, char **argv) {
 		// Create thread for timer function
 		if(pthread_create(&timer_thread, NULL, (void*)timer_function, &timer) != 0) {
 			fprintf(stderr, "Error creating timer thread.\n");
-			return 1;
+			cleanup(sessions, number_of_tests);
+			exit(EXIT_FAILURE);
 		}
-
-        struct input_event ev;
-        int fd = open(device_file_path, O_RDONLY);
-        if (fd == -1) {
-            perror("Error opening device");
-            return 1;
-        }
-
-        // Variables to track Shift state and Caps toggle
-        int shift_pressed = 0;
-        int caps_lock = 0;
-
-        // **Active keys map**: Track keys that are pressed but not yet released
-        struct keystroke active_keys[KEY_MAX + 1];  // Store the active keys and their press times
-        int active_keys_count = 0;
+	
+		// Open event file for reading
+		struct input_event ev;
+		int fd = open(device_file_path, O_RDONLY);
+		if (fd == -1) {
+		    perror("Error opening device");
+		    cleanup(sessions, number_of_tests);
+		    exit(EXIT_FAILURE);
+		}
+	
+		shift_pressed = 0;
+		caps_lock = 0;
+		
+		// **Active keys map**: Track keys that are pressed but not yet released
+		struct keystroke active_keys[KEY_MAX + 1];  // Store the active keys and their press times
+		int active_keys_count = 0;
 
 		// Actually collect the raw data
 		while(timer.flag == true) {
-            if (read(fd, &ev, sizeof(struct input_event)) > 0) {
-                if (ev.type == EV_KEY) {
-                    // Handle Shift Modifiers (Left Shift, Right Shift)
-                    if (ev.code == KEY_LEFTSHIFT || ev.code == KEY_RIGHTSHIFT) {
-                        // Track if the shift key is being held or released
-                        shift_pressed = ev.value;
-                        continue;
-                    }
-                    // Handle Capslock toggle (Pressing the capslock key)
-                    else if(ev.code == KEY_CAPSLOCK && ev.value == 1) {
-                        // Toggle stored flag
-                        caps_lock = !caps_lock;
-                        continue;
-                    }
+			// Read from event file. If there is nothing *new* to read, don't do anything (continue)
+			if (read(fd, &ev, sizeof(struct input_event)) <= 0) 
+				continue;
+			
+			// New event was a key press or a key release
+			if (ev.type == EV_KEY) {
+				// Handle Shift Modifiers (Left Shift, Right Shift)
+				if (ev.code == KEY_LEFTSHIFT || ev.code == KEY_RIGHTSHIFT) {
+					// Track if the shift key is being held or released
+					shift_pressed = ev.value;
+					continue;
+				}
+				// Handle Capslock toggle (Pressing the capslock key)
+				else if(ev.code == KEY_CAPSLOCK && ev.value == 1) {
+					// Toggle stored flag
+					caps_lock = !caps_lock;
+					continue;
+				}
 
-                    // Get ASCII code based on modifers (shift and capslock)
-                    int ascii_character = keycode_to_ascii(ev.code, shift_pressed, caps_lock);
+				// Get ASCII code based on modifers (shift and capslock)
+				int ascii_character = keycode_to_ascii(ev.code, shift_pressed, caps_lock);
 
-                    // Key Pressed
-                    if (ev.value == 1) {
-                        clock_gettime(CLOCK_MONOTONIC, &(active_keys[ev.code].press_time));
+				// Case 1: Key Pressed
+				if (ev.value == 1) {
+					clock_gettime(CLOCK_MONOTONIC, &(active_keys[ev.code].press_time));
 
-                        // Handles backspace
-                        if(ascii_character == '\b' && keystrokes_length > 0) {
-                            active_keys[ev.code].c = 127;
-                            active_keys_count++;
+					// Handles backspace
+					if(ascii_character == '\b' && keystrokes_length > 0) {
+						active_keys[ev.code].c = 127;
+						active_keys_count++;
 
-                            printf("\b \b");
-                            fflush(stdout);
+						printf("\b \b");
+						fflush(stdout);
+					}
+					// Handles all other characters
+					else if (ascii_character && keystrokes_length < BUFFER_SIZE - 1) {
+						active_keys[ev.code].c = ascii_character;
+						active_keys_count++;
+						printf("%c", ascii_character);
+						fflush(stdout);
+					}
+				}
+				// Case 2: Key Released AND it is in active keys with a already set character
+				else if (ev.value == 0 && (int) active_keys[ev.code].c != 0) {
+					clock_gettime(CLOCK_MONOTONIC, &(active_keys[ev.code].release_time));
 
-                        }
-                        // Handles all other characters
-                        else if (ascii_character && keystrokes_length < BUFFER_SIZE - 1) {
-                            active_keys[ev.code].c = ascii_character;
-                            active_keys_count++;
-                            printf("%c", ascii_character);
-                            fflush(stdout);
-                        }
-
-                    }
-                    // Key Released AND it is in active keys with a already set character
-                    else if (ev.value == 0 && (int) active_keys[ev.code].c != 0) {
-                        clock_gettime(CLOCK_MONOTONIC, &(active_keys[ev.code].release_time));
-
-                        // Store the full keystroke in the keystrokes array
-                        keystrokes[keystrokes_length] = active_keys[ev.code];
-                        keystrokes_length++;
-
-                        // Clear active key after release
-                        active_keys[ev.code].c = 0; // Clear active key
-                        active_keys_count--;
-                    }
-                }
-            }
-    
-        }
-
-        // Close the event file we are reading from
-        close(fd);
-        // Sort keystrokes based on press time to ensure correct order
-        qsort(keystrokes, keystrokes_length, sizeof(struct keystroke), compare_keystrokes);
-		
+					// Store the full keystroke in the keystrokes array
+					keystrokes[keystrokes_length] = active_keys[ev.code];
+					keystrokes_length++;
+					
+					// Clear active key after release
+					active_keys[ev.code].c = 0; // Clear active key
+					active_keys_count--;
+				}
+			} // end ev.type == EV_KEY
+		} // end data collection loop
+	    
+		// Close the event file we are reading from
+		close(fd);
+		// Sort keystrokes based on press time to ensure correct order
+		qsort(keystrokes, keystrokes_length, sizeof(struct keystroke), compare_keystrokes);
+			
 		// Restore canonical mode and echoing
 		fflush(stdout);
 		enable_buffering_and_echoing();
@@ -189,34 +221,7 @@ int main(int argc, char **argv) {
 			printf(", %d", (int) keystrokes[i].c);
 
 		printf("\n");
-
-		// Get time deltas for current session
-		dwell_times = get_dwell_times_in_milliseconds(keystrokes, keystrokes_length);
-		if(dwell_times == NULL) {
-			fprintf(stderr, "Could not get the dwell times.\n"); 
-		}
-
-		// Print the dwell times
-		printf("\nDwell Times:\n");
-		printf("%ld", dwell_times[0]);
-		for(size_t i = 1; i < keystrokes_length; i++) 
-			printf(", %ld", dwell_times[i]);
-
-		printf("\n");
-
-        flight_times = get_flight_times_in_milliseconds(keystrokes, keystrokes_length);
-        if(flight_times == NULL) {
-            fprintf(stderr, "Could not get the flight times\n");
-        }
-
-        // Print the flight times
-		printf("\nFlight Times:\n");
-		printf("%ld", flight_times[0]);
-		for(size_t i = 1; i < keystrokes_length - 1; i++) 
-			printf(", %ld", flight_times[i]);
-
-		printf("\n");
-		
+				
 		// Join thread
 		printf("[DEBUG] Attempting to join timer pthread...\n");
 		pthread_join(timer_thread, NULL);
@@ -231,30 +236,95 @@ int main(int argc, char **argv) {
 			// Free other sessions to prevent memory leak
 			for(int i = 0; i < session_number; i++) {
 				if(sessions[session_number].keystrokes != NULL) 
-					free(sessions[session_number].keystrokes);
+					free(sessions[i].keystrokes);
 				
-				if(sessions[session_number].time_deltas != NULL) {
-					free(sessions[session_number].time_deltas->values);
-					free(sessions[session_number].time_deltas);
-				}
+				if(sessions[session_number].time_deltas != NULL) 
+					free(sessions[i].time_deltas);
+				
+				if(sessions[session_number].dwell_times != NULL)
+					free(sessions[i].dwell_times);
+
+				if(sessions[i].flight_times != NULL)
+					free(sessions[i].flight_times);
 			}	
 		}
 		printf("[DEBUG] Session %d's keystrokes buffer was allocated successfully!\n", session_number + 1);
 		printf("[DEBUG] Attempting to copy %zu keystrokes into session %d's keystrokes buffer...\n", keystrokes_length, session_number + 1);
+
+
+
+		// Copy temporary keystrokes buffer into the current session
 		memcpy(sessions[session_number].keystrokes, keystrokes, sizeof(struct keystroke) * keystrokes_length);
 		printf("[DEBUG] Memory copied!\n");
 		sessions[session_number].keystrokes_length = keystrokes_length;
 		
-		// Copy over time deltas (there are always N-1 time deltas where N is the number of keystrokes) 
-		if(dwell_times != NULL) {
-			printf("[DEBUG] Attempting to construct time_delta_array for session %d and have it point to the time deltas found with get_time_deltas_in_milliseconds...\n", session_number + 1);
-			sessions[session_number].time_deltas = time_delta_array_create(dwell_times, keystrokes_length - 1, keystrokes_length - 1);
-			printf("[DEBUG] Function call succeeded!\n");
-			if(sessions[session_number].time_deltas == NULL)
-				fprintf(stderr, "Failed to create new time delta array for session number %d.\n", session_number + 1);
-		}	
-		else
-			sessions[session_number].time_deltas = NULL;
+
+
+		// Store TIME DELTAS in current session (there are always N-1 time deltas where N is the number of keystrokes) 
+		printf("[DEBUG]Attempting to construct time_delta_array for session %d and have it point to the time deltas found with get_time_deltas_in_milliseconds...\n", session_number + 1);
+		
+		error_code = set_session_statistic_data(&sessions[session_number], STATISTIC_TIME_DELTAS); 
+
+		if(error_code != KDT_NO_ERROR) {
+			printf("[DEBUG]Something went wrong when setting the time delta information for session #%d. KDT error code was %d.\n", session_number + 1, error_code);
+		}
+		printf("[DEBUG]Successfully found time deltas for session #%d and set the time delta buffer.\n", session_number + 1);
+
+
+
+		// Store DWELL TIMES in current session 	
+		printf("[DEBUG]Attempting to construct dwell times array for session %d and have it point to the dwell times found with get_time_deltas_in_milliseconds...\n", session_number + 1);
+
+		error_code = set_session_statistic_data(&sessions[session_number], STATISTIC_DWELL_TIMES);
+
+		if(error_code != KDT_NO_ERROR) {
+			printf("[DEBUG]Something went wrong when setting the dwell time information for session #%d. KDT error code was %d.\n", session_number + 1, error_code);
+		}
+		printf("[DEBUG]Successfully found dwell times for session #%d and set the dwell times buffer.\n", session_number + 1);
+
+
+
+		// Store FLIGHT TIMES in current session (there are always N-1 flight times where N is the number of keystrokes) 
+		printf("[DEBUG]Attempting to construct flight times array for session %d and have it point to the flight times found with get_flight_times_in_milliseconds...\n", session_number + 1);
+
+		error_code = set_session_statistic_data(&sessions[session_number], STATISTIC_FLIGHT_TIMES);
+
+		if(error_code != KDT_NO_ERROR) {
+			printf("[DEBUG]Something went wrong when setting the flight time information for session #%d. KDT error code was %d.\n", session_number + 1, error_code);
+		}
+		printf("[DEBUG]Successfully found flight times for session #%d and set the flight times buffer.\n", session_number + 1);
+
+
+		
+		// Display data for current session
+		time_deltas = sessions[session_number].time_deltas;
+		dwell_times = sessions[session_number].dwell_times;
+		flight_times = sessions[session_number].flight_times;
+
+		// (1) Print the time deltas
+		printf("Time deltas:\n");
+		printf("%ld", time_deltas[0]);
+		for(size_t i = 1; i < sessions[session_number].time_deltas_length; i++) {
+			printf(", %ld", time_deltas[i]); 
+		} 
+		printf("\n");
+
+		// (2) Print the dwell times
+		printf("\nDwell Times:\n");
+		printf("%ld", dwell_times[0]);
+		for(size_t i = 1; i < sessions[session_number].keystrokes_length; i++) 
+			printf(", %ld", dwell_times[i]);
+
+		printf("\n");
+
+		// (3) Print the flight times
+		printf("\nFlight Times:\n");
+		printf("%ld", flight_times[0]);
+		for(size_t i = 1; i < sessions[session_number].keystrokes_length - 1; i++) 
+			printf(", %ld", flight_times[i]);
+
+		printf("\n");
+
 
 		// Reset buffer for next run. There is no need to clear out the keystrokes buffer, because
 		// the session struct has its keystrokes member set using memcpy.
@@ -265,7 +335,8 @@ int main(int argc, char **argv) {
 		c = 1;
 		while(c != '\n') 
 			c = fgetc(stdin);
-	}
+
+	} // end of main for loop for sessions
 
 	printf("Program terminated.\n");
 	return 0;

@@ -25,7 +25,16 @@ enum kdt_error       {  KDT_NO_ERROR,
 			KDT_INVALID_OUTPUT_FILE,
 			KDT_INSUFFICIENT_ARGUMENTS,
 			KDT_UNHANDLED_ERROR,
-			KDT_HELP_REQUEST
+			KDT_HELP_REQUEST,
+			KDT_MALLOC_FAILURE,
+			KDT_INADEQUATE_DATA,
+			KDT_NULL_ERROR
+		     };
+
+
+enum kdt_statistic   {  STATISTIC_TIME_DELTAS,
+			STATISTIC_DWELL_TIMES,
+			STATISTIC_FLIGHT_TIMES
 		     };
 
 enum cli_sm_state    {  CLI_SM_START,
@@ -80,54 +89,41 @@ struct timer_state {
 	// pthread_mutex_t lock;
 };
 
-struct phoneme {
-	char length;
-	char *str;
-};
-
-struct time_delta_array {
-	unsigned long *values;
-	size_t length;
-	size_t capacity;
-};
-
-struct kv_pair {
-	struct phoneme *key;
-	struct time_delta_array *value;
-	struct kv_pair *next;
-};
-
 struct session {
 	struct keystroke *keystrokes;
 	size_t keystrokes_length;
-	struct time_delta_array *time_deltas;
+
+	unsigned long *time_deltas;
+	size_t time_deltas_length;
+
+	unsigned long *dwell_times;
+	size_t dwell_times_length;
+
+	unsigned long *flight_times;
+	size_t flight_times_length;
 };
-
-struct phoneme* phoneme_create(char *str, byte length);
-bool phoneme_compare(struct phoneme *p1, struct phoneme *p2);
-
-struct time_delta_array* time_delta_array_create(unsigned long *values, size_t length, size_t capacity);
-
-struct kv_pair *kv_pair_create(struct phoneme *key, struct time_delta_array *value);
-
-short hash_phoneme_struct(struct phoneme *p);
-
-bool hashmap_set(struct kv_pair **hashmap, struct phoneme *key, struct time_delta_array *value);
-struct time_delta_array* hashmap_get(struct kv_pair **hashmap, struct phoneme *key);
-
-void disable_buffering_and_echoing();
-void enable_buffering_and_echoing();
 
 void timer_function(void* arg);
 
+// Enable/disable raw terminal mode
+void disable_buffering_and_echoing();
+void enable_buffering_and_echoing();
+
+// Time array stuff
+enum kdt_error set_session_statistic_data( struct session *s, enum kdt_statistic statistic_code);
+
+unsigned long* get_time_deltas_in_milliseconds(struct keystroke *keystrokes, size_t keystrokes_length);
 unsigned long* get_dwell_times_in_milliseconds(struct keystroke *keystrokes, size_t keystrokes_length);
 unsigned long* get_flight_times_in_milliseconds(struct keystroke *keystrokes, size_t keystrokes_length);
 
+// Debugging stuff
 void display_help_text();
 void display_environment_details(char user[], char email[], char major[], int duration, short number_of_samples, char output_file_path[], char device_file_path[], byte mode);
 
+// CLI paraser
 enum kdt_error parse_command_line_arguments(char *user, char *email, char *major, byte *mode, short *number_of_tests, short *typing_duration, char *device_file_path, char *output_file_path, FILE *output_file_fh, int argc, char **argv); 
 
+// Interpreting event file 
 int keycode_to_ascii(int keycode, int shift, int caps_lock);
 int compare_keystrokes(const void *a, const void *b);
 
