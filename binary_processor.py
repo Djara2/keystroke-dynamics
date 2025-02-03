@@ -29,16 +29,18 @@ def read_keystroke_logger(filename):
             keystrokes = []
             
             for _ in range(num_keystrokes):
-                if f.tell() + 17 > file_size:  # 1 (key) + 8 (press) + 8 (release)
+                if f.tell() + 33 > file_size:  # 1 (key) + 8 (press_sec) + 8 (press_nsec) + 8 (release_sec) + 8 (release_nsec)
                     raise ValueError("Unexpected end of file while reading keystroke data.")
 
                 key = struct.unpack('B', f.read(1))[0]  # 1 byte for key value
-                press_time = struct.unpack('d', f.read(8))[0]  # 8 bytes as double (seconds)
-                release_time = struct.unpack('d', f.read(8))[0]  # 8 bytes as double (seconds)
-                keystrokes.append((key, press_time, release_time))
-                print(f'\t\tKey: {chr(key)}, Press Time: {press_time}, Release Time: {release_time}')
+                press_time_sec = struct.unpack('d', f.read(8))[0]  # 8 bytes as double (seconds)
+                press_time_nsec = struct.unpack('d', f.read(8))[0]  # 8 bytes as double (seconds)
+                release_time_sec = struct.unpack('d', f.read(8))[0]  # 8 bytes as double (seconds)
+                release_time_nsec = struct.unpack('d', f.read(8))[0]  # 8 bytes as double (seconds)
+                keystrokes.append((key, press_time_sec, press_time_nsec, release_time_sec, release_time_nsec))
+                print(f'\t\tKey: {chr(key)}, Press Time: {press_time_sec} {press_time_nsec}, Release Time: {release_time_sec} {release_time_nsec}')
             
-            # Read delta array (stored in nanoseconds → convert to milliseconds)
+            # Read delta array (stored in milliseconds)
             if f.tell() + 8 > file_size:
                 raise ValueError("Unexpected end of file while reading delta count.")
 
@@ -50,11 +52,11 @@ def read_keystroke_logger(filename):
                 if f.tell() + 8 > file_size:
                     raise ValueError("Unexpected end of file while reading delta values.")
 
-                deltas[i] = struct.unpack('Q', f.read(8))[0] // 1_000_000  # ✅ Convert ns → ms
+                deltas[i] = struct.unpack('Q', f.read(8))[0]
 
             print(f'\tDelta values (ms): {deltas.tolist()}')
 
-            # Read dwell array (stored in nanoseconds → convert to milliseconds)
+            # Read dwell array (stored in milliseconds)
             if f.tell() + 8 > file_size:
                 raise ValueError("Unexpected end of file while reading dwell count.")
 
@@ -66,11 +68,11 @@ def read_keystroke_logger(filename):
                 if f.tell() + 8 > file_size:
                     raise ValueError("Unexpected end of file while reading dwell values.")
 
-                dwells[i] = struct.unpack('Q', f.read(8))[0] // 1_000_000  # ✅ Convert ns → ms
+                dwells[i] = struct.unpack('Q', f.read(8))[0]  # ✅ Convert ns → ms
 
             print(f'\tDwell values (ms): {dwells.tolist()}')
 
-            # Read flight array (stored in nanoseconds → convert to milliseconds)
+            # Read flight array (stored in milliseconds)
             if f.tell() + 8 > file_size:
                 raise ValueError("Unexpected end of file while reading flight count.")
 
@@ -82,7 +84,7 @@ def read_keystroke_logger(filename):
                 if f.tell() + 8 > file_size:
                     raise ValueError("Unexpected end of file while reading flight values.")
 
-                flights[i] = struct.unpack('Q', f.read(8))[0] // 1_000_000  # ✅ Convert ns → ms
+                flights[i] = struct.unpack('Q', f.read(8))[0]  # ✅ Convert ns → ms
 
             print(f'\tFlight values (ms): {flights.tolist()}')
 
@@ -96,7 +98,7 @@ def read_keystroke_logger(filename):
     return sessions
 
 if __name__ == "__main__":
-    input_file = "keystroke_log_final.bin"
+    input_file = "output.bin"
 
     try:
         sessions = read_keystroke_logger(input_file)
