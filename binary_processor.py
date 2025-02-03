@@ -1,136 +1,106 @@
-# phase 1, parse binary data
-# phase 2, put it into dictionary
-
-from sys import argv
 import struct
+import json
+import os
+import numpy as np  # ✅ Using NumPy for efficient processing
 
 def read_keystroke_logger(filename):
     with open(filename, 'rb') as f:
+        file_size = os.path.getsize(filename)
+        print(f"File size: {file_size} bytes\n")
+
         # Read the number of sessions (8 bytes, unsigned long long)
+        if file_size < 8:
+            raise ValueError("File too small to contain session count.")
+
         num_sessions = struct.unpack('Q', f.read(8))[0]
         print(f'Number of sessions: {num_sessions}')
         
         sessions = []
         
         for s in range(num_sessions):
-            print(f'\nSession {s+1}:')
-            
-            # Read the number of keystrokes (8 bytes, unsigned long long)
+            print(f'\nSession {s+1}: Reading at position {f.tell()}')
+
+            if f.tell() + 8 > file_size:
+                raise ValueError("Unexpected end of file while reading keystroke count.")
+
             num_keystrokes = struct.unpack('Q', f.read(8))[0]
             print(f'\tNumber of keystrokes: {num_keystrokes}')
             
             keystrokes = []
             
             for _ in range(num_keystrokes):
+                if f.tell() + 17 > file_size:  # 1 (key) + 8 (press) + 8 (release)
+                    raise ValueError("Unexpected end of file while reading keystroke data.")
+
                 key = struct.unpack('B', f.read(1))[0]  # 1 byte for key value
-                press_time = struct.unpack('Q', f.read(8))[0]  # 8 bytes for press timestamp
-                release_time = struct.unpack('Q', f.read(8))[0]  # 8 bytes for release timestamp
+                press_time = struct.unpack('d', f.read(8))[0]  # 8 bytes as double (seconds)
+                release_time = struct.unpack('d', f.read(8))[0]  # 8 bytes as double (seconds)
                 keystrokes.append((key, press_time, release_time))
-                print(f'\t\tKey: {key}, Press Time: {press_time}, Release Time: {release_time}')
+                print(f'\t\tKey: {chr(key)}, Press Time: {press_time}, Release Time: {release_time}')
             
-            # Read delta array
-            delta_length = struct.unpack('Q', f.read(8))[0]  # 8 bytes for delta array length
-            # delta_capacity = struct.unpack('Q', f.read(8))[0]  # 8 bytes for delta array capacity (ignored)
+            # Read delta array (stored in nanoseconds → convert to milliseconds)
+            if f.tell() + 8 > file_size:
+                raise ValueError("Unexpected end of file while reading delta count.")
+
+            delta_length = struct.unpack('Q', f.read(8))[0]
             print(f'\tDelta array length: {delta_length}')
-            
-            deltas = []
-            for _ in range(delta_length):
-                delta_value = struct.unpack('Q', f.read(8))[0]  # 8 bytes for each delta value
-                deltas.append(delta_value)
-                
-            print(f'\tDelta values: {deltas}')
-            
-            # Read dwell array
-            dwell_length = struct.unpack('Q', f.read(8))[0]  # 8 bytes for dwell array length
-            # dwell_capacity = struct.unpack('Q', f.read(8))[0]  # 8 bytes for dwell array capacity (ignored)
+
+            deltas = np.zeros(delta_length, dtype=np.int64)  # ✅ Use NumPy array for efficiency
+            for i in range(delta_length):
+                if f.tell() + 8 > file_size:
+                    raise ValueError("Unexpected end of file while reading delta values.")
+
+                deltas[i] = struct.unpack('Q', f.read(8))[0] // 1_000_000  # ✅ Convert ns → ms
+
+            print(f'\tDelta values (ms): {deltas.tolist()}')
+
+            # Read dwell array (stored in nanoseconds → convert to milliseconds)
+            if f.tell() + 8 > file_size:
+                raise ValueError("Unexpected end of file while reading dwell count.")
+
+            dwell_length = struct.unpack('Q', f.read(8))[0]
             print(f'\tDwell array length: {dwell_length}')
-            
-            dwells = []
-            for _ in range(dwell_length):
-                dwell_value = struct.unpack('Q', f.read(8))[0]  # 8 bytes for each dwell value
-                dwells.append(dwell_value)
-                
-            print(f'\tDwell values: {deltas}')
-            
-            # Read flight array
-            flight_length = struct.unpack('Q', f.read(8))[0]  # 8 bytes for flight array length
-            # flight_capacity = struct.unpack('Q', f.read(8))[0]  # 8 bytes for flight array capacity (ignored)
+
+            dwells = np.zeros(dwell_length, dtype=np.int64)  # ✅ NumPy for efficiency
+            for i in range(dwell_length):
+                if f.tell() + 8 > file_size:
+                    raise ValueError("Unexpected end of file while reading dwell values.")
+
+                dwells[i] = struct.unpack('Q', f.read(8))[0] // 1_000_000  # ✅ Convert ns → ms
+
+            print(f'\tDwell values (ms): {dwells.tolist()}')
+
+            # Read flight array (stored in nanoseconds → convert to milliseconds)
+            if f.tell() + 8 > file_size:
+                raise ValueError("Unexpected end of file while reading flight count.")
+
+            flight_length = struct.unpack('Q', f.read(8))[0]
             print(f'\tFlight array length: {flight_length}')
-            
-            flights = []
-            for _ in range(flight_length):
-                flight_value = struct.unpack('Q', f.read(8))[0]  # 8 bytes for each flight value
-                flights.append(flight_value)
-                
-            print(f'\tFlight values: {flights}')
-            
+
+            flights = np.zeros(flight_length, dtype=np.int64)  # ✅ NumPy for efficiency
+            for i in range(flight_length):
+                if f.tell() + 8 > file_size:
+                    raise ValueError("Unexpected end of file while reading flight values.")
+
+                flights[i] = struct.unpack('Q', f.read(8))[0] // 1_000_000  # ✅ Convert ns → ms
+
+            print(f'\tFlight values (ms): {flights.tolist()}')
+
             sessions.append({
                 'keystrokes': keystrokes,
-                'deltas': deltas,
-                'dwells':dwells,
-                'flights':flights
+                'deltas': deltas.tolist(),  # Convert NumPy array to a list for JSON output
+                'dwells': dwells.tolist(),
+                'flights': flights.tolist()
             })
-            
+    
     return sessions
 
-def generate_keystroke_hashmap(sessions):
-    hashmaps = []
-    for session in sessions:
-        keystrokes = session['keystrokes']
-        hashmap = {}
-        for i in range(len(keystrokes) - 1):
-            key1, press1, release1 = keystrokes[i]
-            key2, press2, release2 = keystrokes[i + 1]
-            
-            key_pair = (key1, key2)
-            hashmap[key_pair] = {
-                'time_between_press': press2 - press1,
-                'time_between_release': release2 - release1,
-                'time_between_release_press': press2 - release1,
-                'time_between_press_release': release2 - press1
-            }
-        hashmaps.append(hashmap)
-    return hashmaps
-
-# Example usage:
-# sessions_data = read_keystroke_logger('keystroke_data.bin')
-# keystroke_hashmaps = generate_keystroke_hashmap(sessions_data)
-
-def print_help():
-    print("Usage: python3 [OPTIONS] ... [FILE]\n\nRequired arguments:\n\t-o, --output\t\tthe name of the file to which the processed data will be written. Must be the last argument.\n\nOptional arguments:\n\t-i, --input\t\tthe name of the file to be used as the input for data processing.\n\n\t-h, -help\t\tto see this message again.\n")
-    exit()
-
-
 if __name__ == "__main__":
-    # -i or --input  everything after is filepath(s)
-    # -o or --output end, exactly 1 token after
-    input_file = "kdt"
-    argc = len(argv)
-    if(argc < 3):
-        print_help()
-    if(argv[argc-2] != "-o"):
-        print("[Command Error] Must include output file as last argument.")
-        print_help()
-    for i in range(argc):
-        if(argv[i].lower() in ("-h", "--help")):
-            print_help()
-        elif(argv[i] in ("-i", "--input")):
-            try:
-                input_file = argv[i+1]
-                if(input_file == None):
-                    print("[Input Error] Provided file is empty.\n")
-                else:
-                    session = read_keystroke_logger(input_file)
-                    hashmap = generate_keystroke_hashmap(session)
-            except:
-                print("[Input Error] The file provided produced an error.\n")
-                print_help()
-        elif(argv[i] in ("-o", "--output")):
-            try:
-                output_file = argv[i+1]
-                with open(output_file, "w") as out:
-                    out.write(hashmap)
-            except:
-                print("[Output Error] Output could not be written to.\n")
-        else:
-            pass
+    input_file = "keystroke_log_final.bin"
+
+    try:
+        sessions = read_keystroke_logger(input_file)
+        print("\nProcessing Complete!")
+
+    except Exception as e:
+        print(f"[Error] {e}")
