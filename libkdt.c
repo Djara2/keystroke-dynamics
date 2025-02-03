@@ -132,45 +132,33 @@ enum kdt_error set_session_statistic_data( struct session *s, enum kdt_statistic
 	unsigned long* (*statistics_function)(struct keystroke*, size_t);
 	switch(statistic_code) {
 		case STATISTIC_TIME_DELTAS:
-			// Set meta variables
-			//statistic_array = s->time_deltas;
-			//statistic_array_length = &(s->time_deltas_length);
-			statistics_function = get_time_deltas_in_milliseconds;
-
+			statistic_array_length = &(s->time_deltas_length);
 			// Get statistics, then set statistics array and length member
+			statistics_function = get_time_deltas_in_milliseconds;
 			statistic_array = statistics_function(s->keystrokes, s->keystrokes_length);
-			//(*statistic_array_length) = (s->keystrokes_length) - 1;				// times between keystrokes, so there are n-1 of these
 			
 			s->time_deltas = statistic_array;
-			s->time_deltas_length = s->keystrokes_length - 1;
+			s->time_deltas_length = s->keystrokes_length - 1;	// times between keystrokes, so there are n-1 of these
 			break;
 
 		case STATISTIC_DWELL_TIMES:
-			// Set meta variables
-			//statistic_array = s->dwell_times;
-			//statistic_array_length = &(s->dwell_times_length); 
-			statistics_function = get_dwell_times_in_milliseconds;
-
+			statistic_array_length = &(s->dwell_times_length);
 			// Get statistics, then set statistics array and length member
+			statistics_function = get_dwell_times_in_milliseconds;
 			statistic_array = statistics_function(s->keystrokes, s->keystrokes_length);
-			//(*statistic_array_length) = s->keystrokes_length;
 
 			s->dwell_times = statistic_array;
 			s->dwell_times_length = s->keystrokes_length;
 			break;
 
 		case STATISTIC_FLIGHT_TIMES:		
-			// Set meta variables
-			//statistic_array = s->flight_times;
-			//statistic_array_length = &(s->flight_times_length); 
-			statistics_function = get_flight_times_in_milliseconds;
-
+			statistic_array_length = &(s->flight_times_length);
 			// Get statistics, then set statistics array and length member
+			statistics_function = get_flight_times_in_milliseconds;
 			statistic_array = statistics_function(s->keystrokes, s->keystrokes_length);
-			//(*statistic_array_length) = s->keystrokes_length - 1;				// times between keystrokes, so there are n-1 of these
 			
 			s->flight_times = statistic_array;
-			s->flight_times_length = s->keystrokes_length - 1;
+			s->flight_times_length = s->keystrokes_length - 1;	// times between keystrokes, so there are n-1 of these
 			break;
 
 		default:

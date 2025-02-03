@@ -102,6 +102,20 @@ int main(int argc, char **argv) {
 	//unsigned char bytes_read = 0;
 
 	struct session sessions[number_of_tests];
+	// make sure members are initialized. This can cause problems later otherwise
+	for(byte i = 0; i < number_of_tests; i++) {
+		sessions[i].keystrokes = NULL;
+		sessions[i].keystrokes_length = 0;
+
+		sessions[i].time_deltas = NULL;
+		sessions[i].time_deltas_length = 0;
+
+		sessions[i].dwell_times = NULL;
+		sessions[i].dwell_times_length = 0;
+
+		sessions[i].flight_times = NULL;
+		sessions[i].flight_times_length = 0;
+	}
 	byte sessions_length = 0;
 	unsigned long *time_deltas;
 	unsigned long *dwell_times;
@@ -338,22 +352,32 @@ int main(int argc, char **argv) {
 
 	} // end of main for loop for sessions
 
-	// Open file for writing
-    output_file_fh = fopen(output_file_path, "wb");
-    if (output_file_fh == NULL) {
-        fprintf(stderr, "Error opening file \"%s\" for writing.\n", output_file_path);
-        return 1;
-    }
+	// Open output file for writing (binary mode)
+    	output_file_fh = fopen(output_file_path, "wb");
+	if (output_file_fh == NULL) {
+       		fprintf(stderr, "Error opening file \"%s\" for writing.\n", output_file_path);
 
-    // Save session data
-    if (save_sessions(output_file_fh, sessions, number_of_tests) != 0) {
-        fprintf(stderr, "Error saving session data to file.\n");
-        fclose(output_file_fh);
-        return 1;
-    }
-    fclose(output_file_fh);
-    printf("Session data successfully saved to %s\n", output_file_path);
+		printf("Performing cleanup...");
+		cleanup(sessions, number_of_tests);
+		printf("\tdone!\n");
 
-	printf("Program terminated.\n");
+        	exit(EXIT_FAILURE);
+    	}
+
+	// Save session data
+	if (save_sessions(output_file_fh, sessions, number_of_tests) != 0) {
+		fprintf(stderr, "Error saving session data to file.\n");
+		fclose(output_file_fh);
+
+		printf("Performing cleanup...");
+		cleanup(sessions, number_of_tests);
+		printf("\tdone!\n");
+
+		exit(EXIT_FAILURE);
+	}
+    	fclose(output_file_fh);
+    	printf("Session data successfully saved to %s\n", output_file_path);
+
+	printf("Program terminated [OK].\n");
 	return 0;
 }

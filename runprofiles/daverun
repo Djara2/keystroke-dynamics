@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+cp ../kdt ~/temp
+sudo ~/temp/kdt --user dave --email dave@coolmail.com --major "computer science" --number 1 --duration 10 --output ~/temp/dave.bin --device-file /dev/input/event10 -f
