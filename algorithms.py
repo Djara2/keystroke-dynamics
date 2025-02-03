@@ -25,13 +25,13 @@ def knn_manhattan(training_data, classifier_list, test_point, k):
 
 
 
-training_data = [[51, 565], [654, 54], [6541, 654], [65,56], [321, 48]]
-classifier_list = ['person', 'imposter', 'person', 'person', 'imposter']
-test_point = [652, 98]
-k = 3
+# training_data = [[51, 565], [654, 54], [6541, 654], [65,56], [321, 48]]
+# classifier_list = ['person', 'imposter', 'person', 'person', 'imposter']
+# test_point = [652, 98]
+# k = 3
 
-predicted_classifier_euclidean = knn_euclidean(training_data, classifier_list, test_point, k)
-predicted_classifier_manhattan = knn_manhattan(training_data, classifier_list, test_point, k)
+# predicted_classifier_euclidean = knn_euclidean(training_data, classifier_list, test_point, k)
+# predicted_classifier_manhattan = knn_manhattan(training_data, classifier_list, test_point, k)
 
-print(predicted_classifier_euclidean)
-print(predicted_classifier_manhattan)
+# print(predicted_classifier_euclidean)
+# print(predicted_classifier_manhattan)
