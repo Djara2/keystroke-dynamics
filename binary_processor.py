@@ -3,8 +3,6 @@
 
 import struct
 
-import struct
-
 def read_keystroke_logger(filename):
     with open(filename, 'rb') as f:
         # Read the number of sessions (8 bytes, unsigned long long)
@@ -18,7 +16,7 @@ def read_keystroke_logger(filename):
             
             # Read the number of keystrokes (8 bytes, unsigned long long)
             num_keystrokes = struct.unpack('Q', f.read(8))[0]
-            print(f'  Number of keystrokes: {num_keystrokes}')
+            print(f'\tNumber of keystrokes: {num_keystrokes}')
             
             keystrokes = []
             
@@ -27,23 +25,49 @@ def read_keystroke_logger(filename):
                 press_time = struct.unpack('Q', f.read(8))[0]  # 8 bytes for press timestamp
                 release_time = struct.unpack('Q', f.read(8))[0]  # 8 bytes for release timestamp
                 keystrokes.append((key, press_time, release_time))
-                print(f'    Key: {key}, Press Time: {press_time}, Release Time: {release_time}')
+                print(f'\t\tKey: {key}, Press Time: {press_time}, Release Time: {release_time}')
             
             # Read delta array
             delta_length = struct.unpack('Q', f.read(8))[0]  # 8 bytes for delta array length
-            delta_capacity = struct.unpack('Q', f.read(8))[0]  # 8 bytes for delta array capacity (ignored)
-            print(f'  Delta array length: {delta_length}')
+            # delta_capacity = struct.unpack('Q', f.read(8))[0]  # 8 bytes for delta array capacity (ignored)
+            print(f'\tDelta array length: {delta_length}')
             
             deltas = []
             for _ in range(delta_length):
                 delta_value = struct.unpack('Q', f.read(8))[0]  # 8 bytes for each delta value
                 deltas.append(delta_value)
                 
-            print(f'  Delta values: {deltas}')
+            print(f'\tDelta values: {deltas}')
+            
+            # Read dwell array
+            dwell_length = struct.unpack('Q', f.read(8))[0]  # 8 bytes for dwell array length
+            # dwell_capacity = struct.unpack('Q', f.read(8))[0]  # 8 bytes for dwell array capacity (ignored)
+            print(f'\tDwell array length: {dwell_length}')
+            
+            dwells = []
+            for _ in range(dwell_length):
+                dwell_value = struct.unpack('Q', f.read(8))[0]  # 8 bytes for each dwell value
+                dwells.append(dwell_value)
+                
+            print(f'\tDwell values: {deltas}')
+            
+            # Read flight array
+            flight_length = struct.unpack('Q', f.read(8))[0]  # 8 bytes for flight array length
+            # flight_capacity = struct.unpack('Q', f.read(8))[0]  # 8 bytes for flight array capacity (ignored)
+            print(f'\tFlight array length: {flight_length}')
+            
+            flights = []
+            for _ in range(flight_length):
+                flight_value = struct.unpack('Q', f.read(8))[0]  # 8 bytes for each flight value
+                flights.append(flight_value)
+                
+            print(f'\tFlight values: {flights}')
             
             sessions.append({
                 'keystrokes': keystrokes,
-                'deltas': deltas
+                'deltas': deltas,
+                'dwells':dwells,
+                'flights':flights
             })
             
     return sessions
