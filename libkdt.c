@@ -54,8 +54,8 @@ unsigned long* get_time_deltas_in_milliseconds(struct keystroke *keystrokes, siz
 	
 	// Actually get dwell times
 	for(size_t i = 0; i < keystrokes_length - 1; i++) {
-		unsigned long whole_seconds_difference_in_ms = 1000 * (keystrokes[i].press_time.tv_sec - keystrokes[i+1].press_time.tv_sec);
-		unsigned long nanoseconds_difference_in_ms   = (keystrokes[i].press_time.tv_nsec - keystrokes[i+1].press_time.tv_nsec) / 1000000;
+		unsigned long whole_seconds_difference_in_ms = 1000 * (keystrokes[i+1].press_time.tv_sec - keystrokes[i].press_time.tv_sec);
+		unsigned long nanoseconds_difference_in_ms   = (keystrokes[i+1].press_time.tv_nsec - keystrokes[i].press_time.tv_nsec) / 1000000;
 		time_deltas[i] = whole_seconds_difference_in_ms + nanoseconds_difference_in_ms;	
 	}
 
@@ -133,35 +133,44 @@ enum kdt_error set_session_statistic_data( struct session *s, enum kdt_statistic
 	switch(statistic_code) {
 		case STATISTIC_TIME_DELTAS:
 			// Set meta variables
-			statistic_array = s->time_deltas;
-			statistic_array_length = &(s->time_deltas_length);
+			//statistic_array = s->time_deltas;
+			//statistic_array_length = &(s->time_deltas_length);
 			statistics_function = get_time_deltas_in_milliseconds;
 
 			// Get statistics, then set statistics array and length member
 			statistic_array = statistics_function(s->keystrokes, s->keystrokes_length);
-			(*statistic_array_length) = (s->keystrokes_length) - 1;				// times between keystrokes, so there are n-1 of these
+			//(*statistic_array_length) = (s->keystrokes_length) - 1;				// times between keystrokes, so there are n-1 of these
+			
+			s->time_deltas = statistic_array;
+			s->time_deltas_length = s->keystrokes_length - 1;
 			break;
 
 		case STATISTIC_DWELL_TIMES:
 			// Set meta variables
-			statistic_array = s->dwell_times;
-			statistic_array_length = &(s->dwell_times_length); 
+			//statistic_array = s->dwell_times;
+			//statistic_array_length = &(s->dwell_times_length); 
 			statistics_function = get_dwell_times_in_milliseconds;
 
 			// Get statistics, then set statistics array and length member
 			statistic_array = statistics_function(s->keystrokes, s->keystrokes_length);
-			(*statistic_array_length) = s->keystrokes_length;
+			//(*statistic_array_length) = s->keystrokes_length;
+
+			s->dwell_times = statistic_array;
+			s->dwell_times_length = s->keystrokes_length;
 			break;
 
 		case STATISTIC_FLIGHT_TIMES:		
 			// Set meta variables
-			statistic_array = s->flight_times;
-			statistic_array_length = &(s->flight_times_length); 
+			//statistic_array = s->flight_times;
+			//statistic_array_length = &(s->flight_times_length); 
 			statistics_function = get_flight_times_in_milliseconds;
 
 			// Get statistics, then set statistics array and length member
 			statistic_array = statistics_function(s->keystrokes, s->keystrokes_length);
-			(*statistic_array_length) = s->keystrokes_length - 1;				// times between keystrokes, so there are n-1 of these
+			//(*statistic_array_length) = s->keystrokes_length - 1;				// times between keystrokes, so there are n-1 of these
+			
+			s->flight_times = statistic_array;
+			s->flight_times_length = s->keystrokes_length - 1;
 			break;
 
 		default:
@@ -799,6 +808,58 @@ int compare_keystrokes(const void *a, const void *b) {
         return -1;
     if (ka->press_time.tv_nsec > kb->press_time.tv_nsec)
         return 1;
+
+    return 0;
+}
+
+/* 
+ * Function to serialize and save sessions data to file 
+ * Takes in a file handler, an array of sessions, and the number of sessions
+ */
+int save_sessions(FILE *file, struct session *sessions, size_t session_count) {
+    // Make sure file pointer is valid
+    if (!file) {
+        fprintf(stderr, "Invalid file pointer for saving sessions.\n");
+        return -1;
+    }
+
+    // Store the number of sessions (8 bytes)
+    fwrite(&session_count, sizeof(size_t), 1, file);
+
+    for (size_t i = 0; i < session_count; i++) {
+        // Store the number of keystrokes in the session (8 bytes)
+        fwrite(&sessions[i].keystrokes_length, sizeof(size_t), 1, file);
+
+        // Store each keystroke (key, press time, release time) (33 bytes total)
+        for (size_t j = 0; j < sessions[i].keystrokes_length; j++) {
+            fwrite(&sessions[i].keystrokes[j].c, sizeof(char), 1, file);  // Keystroke key (1 byte)
+            fwrite(&sessions[i].keystrokes[j].press_time.tv_sec, sizeof(time_t), 1, file);  // Press timestamp (8 bytes)
+            fwrite(&sessions[i].keystrokes[j].press_time.tv_nsec, sizeof(long), 1, file);   // Nanoseconds (8 bytes)
+            fwrite(&sessions[i].keystrokes[j].release_time.tv_sec, sizeof(time_t), 1, file);  // Release timestamp (8 bytes)
+            fwrite(&sessions[i].keystrokes[j].release_time.tv_nsec, sizeof(long), 1, file);   // Nanoseconds (8 bytes)
+        }
+
+        // Store time deltas length (8 bytes)
+        fwrite(&sessions[i].time_deltas_length, sizeof(size_t), 1, file);
+        // Store time deltas data (8 bytes * sessions[i].time_deltas_length)
+        if (sessions[i].time_deltas_length > 0) {
+            fwrite(sessions[i].time_deltas, sizeof(unsigned long), sessions[i].time_deltas_length, file);
+        }
+
+        // Store dwell times length (8 bytes)
+        fwrite(&sessions[i].dwell_times_length, sizeof(size_t), 1, file);
+        // Store dwell times data (8 bytes * sessions[i].dwell_times_length)
+        if (sessions[i].dwell_times_length > 0) {
+            fwrite(sessions[i].dwell_times, sizeof(unsigned long), sessions[i].dwell_times_length, file);
+        }
+
+        // Store flight times length (8 bytes)
+        fwrite(&sessions[i].flight_times_length, sizeof(size_t), 1, file);
+        // Store flight times data (8 bytes * sessions[i].flight_times_length)
+        if (sessions[i].flight_times_length > 0) {
+            fwrite(sessions[i].flight_times, sizeof(unsigned long), sessions[i].flight_times_length, file);
+        }
+    }
 
     return 0;
 }

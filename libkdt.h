@@ -127,4 +127,6 @@ enum kdt_error parse_command_line_arguments(char *user, char *email, char *major
 int keycode_to_ascii(int keycode, int shift, int caps_lock);
 int compare_keystrokes(const void *a, const void *b);
 
+int save_sessions(FILE *file, struct session *sessions, size_t session_count);
+
 #endif
