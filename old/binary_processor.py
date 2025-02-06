@@ -12,7 +12,7 @@ def read_keystroke_logger(filename):
         if file_size < 8:
             raise ValueError("File too small to contain session count.")
 
-        num_sessions = struct.unpack('Q', f.read(8))[0]
+        num_sessions = struct.unpack('<Q', f.read(8))[0]
         print(f'Number of sessions: {num_sessions}')
         
         sessions = []
@@ -23,7 +23,7 @@ def read_keystroke_logger(filename):
             if f.tell() + 8 > file_size:
                 raise ValueError("Unexpected end of file while reading keystroke count.")
 
-            num_keystrokes = struct.unpack('Q', f.read(8))[0]
+            num_keystrokes = struct.unpack('<Q', f.read(8))[0]
             print(f'\tNumber of keystrokes: {num_keystrokes}')
             
             keystrokes = []
@@ -38,13 +38,13 @@ def read_keystroke_logger(filename):
                 release_time_sec = struct.unpack('d', f.read(8))[0]  # 8 bytes as double (seconds)
                 release_time_nsec = struct.unpack('d', f.read(8))[0]  # 8 bytes as double (seconds)
                 keystrokes.append((key, press_time_sec, press_time_nsec, release_time_sec, release_time_nsec))
-                print(f'\t\tKey: {chr(key)}, Press Time: {press_time_sec} {press_time_nsec}, Release Time: {release_time_sec} {release_time_nsec}')
+                #print(f'\t\tKey: {chr(key)}, Press Time: {press_time_sec} {press_time_nsec}, Release Time: {release_time_sec} {release_time_nsec}')
             
             # Read delta array (stored in milliseconds)
             if f.tell() + 8 > file_size:
                 raise ValueError("Unexpected end of file while reading delta count.")
 
-            delta_length = struct.unpack('Q', f.read(8))[0]
+            delta_length = struct.unpack('<Q', f.read(8))[0]
             print(f'\tDelta array length: {delta_length}')
 
             deltas = np.zeros(delta_length, dtype=np.int64)  # ✅ Use NumPy array for efficiency
@@ -52,15 +52,15 @@ def read_keystroke_logger(filename):
                 if f.tell() + 8 > file_size:
                     raise ValueError("Unexpected end of file while reading delta values.")
 
-                deltas[i] = struct.unpack('Q', f.read(8))[0]
+                deltas[i] = struct.unpack('<Q', f.read(8))[0]
 
-            print(f'\tDelta values (ms): {deltas.tolist()}')
+            #print(f'\tDelta values (ms): {deltas.tolist()}')
 
             # Read dwell array (stored in milliseconds)
             if f.tell() + 8 > file_size:
                 raise ValueError("Unexpected end of file while reading dwell count.")
 
-            dwell_length = struct.unpack('Q', f.read(8))[0]
+            dwell_length = struct.unpack('<Q', f.read(8))[0]
             print(f'\tDwell array length: {dwell_length}')
 
             dwells = np.zeros(dwell_length, dtype=np.int64)  # ✅ NumPy for efficiency
@@ -68,25 +68,35 @@ def read_keystroke_logger(filename):
                 if f.tell() + 8 > file_size:
                     raise ValueError("Unexpected end of file while reading dwell values.")
 
-                dwells[i] = struct.unpack('Q', f.read(8))[0]  # ✅ Convert ns → ms
+                dwells[i] = struct.unpack('<Q', f.read(8))[0]  # ✅ Convert ns → ms
 
-            print(f'\tDwell values (ms): {dwells.tolist()}')
+            #print(f'\tDwell values (ms): {dwells.tolist()}')
 
             # Read flight array (stored in milliseconds)
             if f.tell() + 8 > file_size:
                 raise ValueError("Unexpected end of file while reading flight count.")
 
-            flight_length = struct.unpack('Q', f.read(8))[0]
+            flight_length = struct.unpack('<Q', f.read(8))[0]
             print(f'\tFlight array length: {flight_length}')
 
-            flights = np.zeros(flight_length, dtype=np.int64)  # ✅ NumPy for efficiency
+            # Remove print statements for raw bytes and just process the data normally
+            flights = np.zeros(flight_length, dtype=np.int64)
             for i in range(flight_length):
+                # Check for EOF before reading
                 if f.tell() + 8 > file_size:
                     raise ValueError("Unexpected end of file while reading flight values.")
+                
+                raw_bytes = f.read(8)  # Read the next 8 bytes
+                try:
+                    flight_value = struct.unpack('<Q', raw_bytes)[0]
+                    flights[i] = flight_value
+                except Exception as e:
+                    print(f"[ERROR] Failed to unpack flight value at index {i+1}: {str(e)}")
+                    continue  # Skip this value or handle it gracefully
 
-                flights[i] = struct.unpack('Q', f.read(8))[0]  # ✅ Convert ns → ms
+            #print(f'\tFlight values (ms): {flights.tolist()}')
+            #print(f"Real flight values size: {len(flights)}")
 
-            print(f'\tFlight values (ms): {flights.tolist()}')
 
             sessions.append({
                 'keystrokes': keystrokes,
