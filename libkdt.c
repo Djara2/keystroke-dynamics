@@ -804,12 +804,18 @@ int compare_keystrokes(const void *a, const void *b) {
  * Function to serialize and save sessions data to file 
  * Takes in a file handler, an array of sessions, and the number of sessions
  */
-int save_sessions(FILE *file, struct session *sessions, size_t session_count) {
+int save_sessions(FILE *file, struct user_info *user_info, struct session *sessions, size_t session_count) {
     // Make sure file pointer is valid
     if (!file) {
         fprintf(stderr, "Invalid file pointer for saving sessions.\n");
         return -1;
     }
+
+	// Write user_info fields to file
+    fwrite(user_info->user, sizeof(char), 64, file);
+    fwrite(user_info->email, sizeof(char), 64, file);
+    fwrite(user_info->major, sizeof(char), 64, file);
+    fwrite(&user_info->typing_duration, sizeof(short), 1, file);
 
     // Store the number of sessions (8 bytes)
     fwrite(&session_count, sizeof(size_t), 1, file);

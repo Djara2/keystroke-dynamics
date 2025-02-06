@@ -90,6 +90,8 @@ struct timer_state {
 };
 
 struct session {
+	struct user_info *user_info;
+
 	struct keystroke *keystrokes;
 	size_t keystrokes_length;
 
@@ -101,6 +103,13 @@ struct session {
 
 	unsigned long *flight_times;
 	size_t flight_times_length;
+};
+
+struct user_info {
+	char user[64];
+	char email[64];
+	char major[64];
+	short typing_duration;
 };
 
 void timer_function(void* arg);
@@ -127,6 +136,6 @@ enum kdt_error parse_command_line_arguments(char *user, char *email, char *major
 int keycode_to_ascii(int keycode, int shift, int caps_lock);
 int compare_keystrokes(const void *a, const void *b);
 
-int save_sessions(FILE *file, struct session *sessions, size_t session_count);
+int save_sessions(FILE *file, struct user_info *user_info, struct session *sessions, size_t session_count);
 
 #endif

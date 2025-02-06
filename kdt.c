@@ -46,17 +46,22 @@ int main(int argc, char **argv) {
 	
 	// Parse command line arguments
 	enum kdt_error error_code = KDT_NO_ERROR;
-	char user[64];
-	char email[64];
-	char major[64];
-	short typing_duration = 0;
+
+	struct user_info *user_info = malloc(sizeof(struct user_info));
+	if(user_info == NULL) {
+		fprintf(stderr, "Failed to allocate memory for user_info.\n");
+		exit(EXIT_FAILURE);
+	}
+	user_info->typing_duration = 0;
+
+
 	short number_of_tests = 0;
 	char output_file_path[64];
 	FILE *output_file_fh = NULL;
 	char device_file_path[64];
 	byte mode = MODE_FREE_TEXT;
 
-	error_code = parse_command_line_arguments(user, email, major, &mode, &number_of_tests, &typing_duration, device_file_path, output_file_path, output_file_fh, argc, argv);
+	error_code = parse_command_line_arguments(user_info->user, user_info->email, user_info->major, &mode, &number_of_tests, &user_info->typing_duration, device_file_path, output_file_path, output_file_fh, argc, argv);
 	switch(error_code) {
 		case KDT_NO_ERROR:
 			break;
@@ -82,12 +87,12 @@ int main(int argc, char **argv) {
 	}
 
 	//printf("The typing collection will last for %d seconds.\n", typing_duration);
-	display_environment_details(user, email, major, typing_duration, number_of_tests, output_file_path, device_file_path, mode);
+	display_environment_details(user_info->user, user_info->email, user_info->major, user_info->typing_duration, number_of_tests, output_file_path, device_file_path, mode);
 
 	// Initialize shared data for timer fucntion
 	struct timer_state timer = {
 		.flag = true,
-		.seconds = typing_duration
+		.seconds = user_info->typing_duration
 	};
 	
 	size_t keystrokes_length = 0;
@@ -365,7 +370,7 @@ int main(int argc, char **argv) {
     	}
 
 	// Save session data
-	if (save_sessions(output_file_fh, sessions, number_of_tests) != 0) {
+	if (save_sessions(output_file_fh, user_info, sessions, number_of_tests) != 0) {
 		fprintf(stderr, "Error saving session data to file.\n");
 		fclose(output_file_fh);
 
