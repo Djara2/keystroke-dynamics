@@ -31,7 +31,7 @@ def read_keystroke_logger_output(file_path):
 
             # Read each keystroke entry
             for _ in range(keystrokes_length):
-                key = struct.unpack("c", file.read(1))[0]  # [1 byte] (c for a single character)
+                key = struct.unpack("c", file.read(1))[0].decode('utf-8')  # [1 byte] (c for a single character)
                 press_time_sec = struct.unpack("q", file.read(8))[0]  # [8 bytes] (q for long long integer)
                 press_time_nsec = struct.unpack("q", file.read(8))[0]  # [8 bytes] (q for long long integer)
                 release_time_sec = struct.unpack("q", file.read(8))[0]  # [8 bytes] (q for long long integer)
@@ -70,7 +70,7 @@ def read_keystroke_logger_output(file_path):
     
 
 if __name__ == '__main__':
-    file_path = "../infoTest.bin"
+    file_path = "./output/infoTest.bin"
     user_info, sessions_data = read_keystroke_logger_output(file_path)
 
     print(f"User Info: {user_info}")
