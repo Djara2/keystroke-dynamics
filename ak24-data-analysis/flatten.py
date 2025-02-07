@@ -23,3 +23,32 @@ def flatten_grapheme_map(grapheme_map):
 
     return np.array(feature_list)
 
+if __name__ == '__main__':
+    from read_binary import read_keystroke_logger_output
+    from pylibgrapheme import create_grapheme_map, GraphemeType
+
+    file_path = "./output/infoTest.bin"
+
+    # Read the binary keystroke data
+    user_info, sessions_data = read_keystroke_logger_output(file_path)
+
+    print(f"User Info: {user_info}")
+
+    # Limit to just for sessions for now to see how it works
+    for i, session in enumerate(sessions_data[:1]):
+        print(f"\nProcessing Session {i+1}...")
+
+        # Call create_grapheme_map for digraphs
+        grapheme_map = create_grapheme_map(session, GraphemeType.DIGRAPH)
+
+        if grapheme_map:
+            print(f"Grapheme Map for Session {i+1}:")
+            for key, value in grapheme_map.items():
+                # Print the first 5 for now
+                print(f"{key}: {value[:5]}")
+
+            flattened_data = flatten_grapheme_map(grapheme_map)
+            print(f"\n\nFlattened Features for Session {i+1}:")
+            print(flattened_data[:5])  # Print first 5 feature vectors for brevity
+        else:
+            print(f"[ERROR] Failed to process Session {i+1}.")
