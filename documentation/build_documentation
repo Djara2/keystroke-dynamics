@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+echo -n -e "Rendering HTML for pylibgrapheme documentation...\t"
+if pandoc -i pylibgrapheme-documentation.md -o pylibgrapheme-documentation.html ; then
+	echo "done!"
+else
+	echo "[ERROR] Something went wrong rendering pylibgrapheme documentation."
+fi
