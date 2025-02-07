@@ -116,9 +116,9 @@ def create_grapheme_map(session: dict, grapheme_type) -> dict:
     # Rotated 90 degrees clockwise, it's a table
     grapheme_map: dict = { "#"           : [],
                            "grapheme"    : [],
-                           "time delta"  : [],
-                           "dwell time"  : [],
-                           "flight time" : []
+                           "time_delta"  : [],
+                           "dwell_time"  : [],
+                           "flight_time" : []
                          }
 
     match(grapheme_type):
