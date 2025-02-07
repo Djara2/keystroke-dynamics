@@ -77,6 +77,7 @@ if __name__ == '__main__':
 
     for i, session in enumerate(sessions_data):
         print(f"Session {i+1}: User: NOT IMPLEMENTED YET")
+        print(f"    Keystrokes Length: {len(session['keystrokes'])}")
         print(f"    Keystrokes: {session['keystrokes'][:2]}")
         print(f"    Time Deltas: {session['time_deltas'][:2]}")
         print(f"    Dwell Times: {session['dwell_times'][:2]}")
