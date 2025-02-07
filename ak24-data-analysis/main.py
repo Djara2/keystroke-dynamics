@@ -6,7 +6,7 @@ import numpy as np
 
 def process_sessions(sessions):
    
-    for session in sessions:
+    for i, session in enumerate(sessions):
         # Create grapheme map for each session
         grapheme_map_error_code, grapheme_map = create_grapheme_map(session, GraphemeType.DIGRAPH)
 
@@ -15,7 +15,7 @@ def process_sessions(sessions):
             flattened_data = flatten_grapheme_map(grapheme_map)
             if flattened_data is not None:
                 
-                print(f"Flattened Features for All Sessions:\n{flattened_data}")
+                print(f"Flattened Features for session: {i+1}:\n{flattened_data}")
 
             else:
                 print("[ERROR] Flattening failed for a session.")
