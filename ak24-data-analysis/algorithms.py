@@ -91,6 +91,7 @@ def csv_to_python() -> dict:
         matrix: list[str] = csv.readlines()
         csv.close()
     max_sequence_number = len(matrix)
+    # row[0] represents the features. The following rows are the data in matrix-ish form. i represents a given row, j represents a column such that data that shares the same j index is in the same column of the table
     raw_data_dictionary: dict = { matrix[0].split(',')[j].strip():[ matrix[i].split(',')[j].strip() for i in range( 1, max_sequence_number ) ] for j in range( len( matrix[0].split(',') ) ) }
     
     return raw_data_dictionary
