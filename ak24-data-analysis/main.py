@@ -5,7 +5,7 @@ from masterDictionaryBuilder import create_combined_dictionary, write_to_csv, up
 import numpy as np
 import argparse
 
-def process_sessions(sessions):
+def process_sessions(sessions, user_info):
    
     for i, session in enumerate(sessions):
         # Create grapheme map for each session
@@ -18,18 +18,18 @@ def process_sessions(sessions):
         # If a grapheme map exists
         if grapheme_map:
             # Create a combined_dictionary for it
-            combined_dictionary = create_combined_dictionary(grapheme_map, i+1)
+            combined_dictionary = create_combined_dictionary(grapheme_map)
 
             print(f"\n\n {combined_dictionary}")
             
             # Update master dictionary with combined dictionary
-            update_master_dictionary(combined_dictionary, i+1)
+            update_master_dictionary(combined_dictionary)
 
         else:
             print("[ERROR] Failed to process session.")
 
     print_master_dictionary()
-    write_to_csv()
+    write_to_csv(user_info)
 
 def parse_arguments():
     # Initialize argument parser
@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
         if sessions_data:
             # Process sessions and flatten the data
-            process_sessions(sessions_data)
+            process_sessions(sessions_data, user_info)
             
         else:
             print("[ERROR] No valid session data found.")

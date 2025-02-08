@@ -4,7 +4,7 @@ import csv
 # Global variable to store the master dictionary
 master_dictionary = {}
 
-
+# ADD A USER COLUMN TO HANDLE FILTERING THE DATASET
 
 # Function to find the longest values array in the dictionary
 def find_max_values_array_length():
@@ -31,7 +31,7 @@ def print_master_dictionary():
         print(f"{key}: {value}")
 
 # Helper function to fill in master database with -1's
-def fill_in_empty_values(session_count):
+def fill_in_empty_values():
     global master_dictionary
 
     array_length_size = find_max_values_array_length()
@@ -42,7 +42,7 @@ def fill_in_empty_values(session_count):
             values.append(-1)
 
 # Function to update the master dictionary
-def update_master_dictionary(combined_dictionary, session_count):
+def update_master_dictionary(combined_dictionary):
     global master_dictionary
 
     array_length_size = find_max_values_array_length()
@@ -63,9 +63,9 @@ def update_master_dictionary(combined_dictionary, session_count):
             master_dictionary[key].append(value)
 
     # Call helper function to add -1's where needed
-    fill_in_empty_values(session_count)
+    fill_in_empty_values()
 
-def create_combined_dictionary(grapheme_map, session_count):
+def create_combined_dictionary(grapheme_map):
     # Convert the dictionary to a Pandas DataFrame
     df = pd.DataFrame(grapheme_map)
 
@@ -81,7 +81,7 @@ def create_combined_dictionary(grapheme_map, session_count):
 
     return combined_dictionary
 
-def write_to_csv():
+def write_to_csv(user_info):
     global master_dictionary
     # File path where you want to save the CSV
     csv_file_path = "master_dict_output.csv"
@@ -93,15 +93,20 @@ def write_to_csv():
 
     # Write the data to a CSV file with the custom delimiter and quoting
     with open(csv_file_path, mode='w', newline='') as file:
+        # Set paramaters for csv writer
         writer = csv.writer(file, delimiter=delimiter, quotechar=quotechar, quoting=csv.QUOTE_ALL)
 
         # Write the header (keys from master_dictionary)
-        writer.writerow(master_dictionary.keys())
+        headers = list(master_dictionary.keys())
+        headers = ["SequenceNumber", "User"] + headers
+        writer.writerow(headers)
 
-        # Write the rows (values from master_dictionary)
-        rows = zip(*master_dictionary.values())  # Transpose the values so each list becomes a row
-        for row in rows:
-            writer.writerow(row)
+        # Write rows of the data
+        rows = zip(*master_dictionary.values())
+        for count, row in enumerate(rows, 1):
+            row_with_user_count = [count, user_info["user"]] + list(row)
+            writer.writerow(row_with_user_count)
+
 
     print(f"Data successfully written to {csv_file_path} with delimiter '{delimiter}' and quoting applied.")
 
