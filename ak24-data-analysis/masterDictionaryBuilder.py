@@ -38,6 +38,8 @@ def fill_in_empty_values():
 
     # Add -1's to value arrays that arent the same length as the longest
     for key, values in master_dictionary.items():
+        if(key == "user"):
+            continue
         while len(values) < array_length_size:
             values.append(-1)
 
@@ -49,15 +51,16 @@ def update_master_dictionary(combined_dictionary):
 
     
     for key, value in combined_dictionary.items():
+        # If intializing the master dictionary, just copy the dictionary over
+        if(array_length_size == 0):
+            master_dictionary[key] = [value]
+
         # Key doesn't exist in master dictionary and not intializing dictionary
-        if(key not in master_dictionary and array_length_size != 0):
+        elif(key not in master_dictionary and array_length_size != 0):
             # Prepend/Pad -1's to the front, to match size of other value arrays
             master_dictionary[key] = [-1] * (array_length_size)
             # Add in the new dictionary key value pairs
             master_dictionary[key].append(value)
-        # If intializing the master dictionary, just copy the dictionary over
-        elif(array_length_size == 0):
-            master_dictionary[key] = [value]
         # If key already exists in the dictionary, just append new value
         else:
             master_dictionary[key].append(value)
@@ -65,7 +68,7 @@ def update_master_dictionary(combined_dictionary):
     # Call helper function to add -1's where needed
     fill_in_empty_values()
 
-def create_combined_dictionary(grapheme_map):
+def create_combined_dictionary(grapheme_map, user_info):
     # Convert the dictionary to a Pandas DataFrame
     df = pd.DataFrame(grapheme_map)
 
@@ -79,9 +82,11 @@ def create_combined_dictionary(grapheme_map):
             key = f"{grapheme}+{column}"
             combined_dictionary[key] = row[column]
 
+    combined_dictionary["user"] = user_info["user"]
+
     return combined_dictionary
 
-def write_to_csv(user_info):
+def write_to_csv():
     global master_dictionary
     # File path where you want to save the CSV
     csv_file_path = "master_dict_output.csv"
@@ -96,15 +101,22 @@ def write_to_csv(user_info):
         # Set paramaters for csv writer
         writer = csv.writer(file, delimiter=delimiter, quotechar=quotechar, quoting=csv.QUOTE_ALL)
 
-        # Write the header (keys from master_dictionary)
+       # Write the header (keys from master_dictionary)
         headers = list(master_dictionary.keys())
-        headers = ["SequenceNumber", "User"] + headers
+        headers.remove("user")  # Remove the "User" key from the header list
+        headers = ["SequenceNumber", "User"] + headers  # Add "User" as the second column
         writer.writerow(headers)
 
         # Write rows of the data
-        rows = zip(*master_dictionary.values())
+        # Extract the user data separately, assuming it's a list with the same length as other rows
+        user_data = master_dictionary["user"]
+
+        # Transpose the other values to create rows
+        rows = zip(*[v for k, v in master_dictionary.items() if k != "User"])
+
         for count, row in enumerate(rows, 1):
-            row_with_user_count = [count, user_info["user"]] + list(row)
+            user_value = user_data[count - 1]  # Get the corresponding "User" value
+            row_with_user_count = [count, user_value] + list(row)  # Insert user value into the row
             writer.writerow(row_with_user_count)
 
 

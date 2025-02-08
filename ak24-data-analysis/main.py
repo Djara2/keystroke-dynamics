@@ -18,7 +18,7 @@ def process_sessions(sessions, user_info):
         # If a grapheme map exists
         if grapheme_map:
             # Create a combined_dictionary for it
-            combined_dictionary = create_combined_dictionary(grapheme_map)
+            combined_dictionary = create_combined_dictionary(grapheme_map, user_info)
 
             print(f"\n\n {combined_dictionary}")
             
@@ -29,7 +29,7 @@ def process_sessions(sessions, user_info):
             print("[ERROR] Failed to process session.")
 
     print_master_dictionary()
-    write_to_csv(user_info)
+    write_to_csv()
 
 def parse_arguments():
     # Initialize argument parser
