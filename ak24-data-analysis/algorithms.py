@@ -23,10 +23,10 @@ def pearson_correlation(raw_data: dict) -> dict:
     # Check to make sure data exists
     if raw_data == None:
         return Error.NO_DATA
-    feature_list: list = [key for key in raw_data.keys()] # converting to list for iterability
+    feature_list: list = [key for key in raw_data.keys() if key != "SequenceNumber"] # converting to list for iterability
     # Assign an importance of 1 to each feature. The idea is to compare two features for correlation and if they are correlated, reduce the importance of one feature to 0.
     feature_importance: dict = {key:1 for key in feature_list}
-    n: int = len(raw_data[0]) # n needs to be the number of rows in the data
+    n: int = max(raw_data["SequenceNumber"]) # n needs to be the number of rows in the data
     for index_left in range(n-1):
         left_feature: str = feature_list[index_left]
         for index_right in range(index_left, n-1):
