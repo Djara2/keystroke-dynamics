@@ -731,6 +731,13 @@ int keycode_to_ascii(int keycode, int shift, int caps_lock) {
         lower_map[KEY_ENTER] = '\n';
         lower_map[KEY_BACKSPACE] = '\b';
 
+		lower_map[KEY_COMMA] = ',';			lower_map[KEY_SEMICOLON] = ';';
+		lower_map[KEY_DOT] = '.';			lower_map[KEY_APOSTROPHE] = '\'';
+		lower_map[KEY_SLASH] = '/';			lower_map[KEY_LEFTBRACE] = '[';
+		lower_map[KEY_RIGHTBRACE] = ']'; 	lower_map[KEY_BACKSLASH] = '\\';
+		lower_map[KEY_MINUS] = '-';			lower_map[KEY_EQUAL] = '=';
+		lower_map[KEY_GRAVE] = '`'; 
+
         // Populate upper_map (Shifted keys)
         upper_map[KEY_1] = '!'; upper_map[KEY_2] = '@'; upper_map[KEY_3] = '#';
         upper_map[KEY_4] = '$'; upper_map[KEY_5] = '%'; upper_map[KEY_6] = '^';
@@ -753,6 +760,13 @@ int keycode_to_ascii(int keycode, int shift, int caps_lock) {
         upper_map[KEY_SPACE] = ' ';
         upper_map[KEY_ENTER] = '\n';
         upper_map[KEY_BACKSPACE] = '\b';
+
+		upper_map[KEY_COMMA] = '<';			upper_map[KEY_DOT] = '>';
+		upper_map[KEY_SEMICOLON] = ':';		upper_map[KEY_APOSTROPHE] = '"';
+		upper_map[KEY_SLASH] = '?';			upper_map[KEY_LEFTBRACE] = '{';
+		upper_map[KEY_RIGHTBRACE] = '}'; 	upper_map[KEY_BACKSLASH] = '|';
+		upper_map[KEY_MINUS] = '_';			upper_map[KEY_EQUAL] = '+';
+		upper_map[KEY_GRAVE] = '~'; 
     }
 
     if (keycode < 0 || keycode > KEY_MAX) return 0;  // Ignore invalid keycodes
