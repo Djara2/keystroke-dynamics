@@ -93,7 +93,7 @@ def write_to_csv():
 
     # Write the data to a CSV file with the custom delimiter and quoting
     with open(csv_file_path, mode='w', newline='') as file:
-        writer = csv.writer(file, delimiter=delimiter, quotechar=quotechar, quoting=csv.QUOTE_MINIMAL)
+        writer = csv.writer(file, delimiter=delimiter, quotechar=quotechar, quoting=csv.QUOTE_ALL)
 
         # Write the header (keys from master_dictionary)
         writer.writerow(master_dictionary.keys())
