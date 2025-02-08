@@ -103,17 +103,17 @@ def write_to_csv():
 
        # Write the header (keys from master_dictionary)
         headers = list(master_dictionary.keys())
-        headers.remove("user")  # Remove the "User" key from the header list
-        headers = ["SequenceNumber", "User"] + headers  # Add "User" as the second column
+        headers.remove("user")  # Remove the "user" key from the header list
+        headers = ["SequenceNumber", "User"] + headers  # Add "user" as the second column
         writer.writerow(headers)
-
-        # Write rows of the data
-        # Extract the user data separately, assuming it's a list with the same length as other rows
+        
+        # Extract the user data separately
         user_data = master_dictionary["user"]
 
         # Transpose the other values to create rows
-        rows = zip(*[v for k, v in master_dictionary.items() if k != "User"])
+        rows = zip(*[v for k, v in master_dictionary.items() if k != "user"])
 
+        # Write rows of the data
         for count, row in enumerate(rows, 1):
             user_value = user_data[count - 1]  # Get the corresponding "User" value
             row_with_user_count = [count, user_value] + list(row)  # Insert user value into the row
