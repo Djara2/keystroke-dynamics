@@ -22,8 +22,9 @@ class Constant(Enum):
 def pearson_correlation(raw_data: dict) -> dict:
     # Check to make sure data exists
     if raw_data == None:
+        print(f'[pearson_correlation] Data was not found in the raw_data input.\n')
         return Error.NO_DATA
-    feature_list: list = [key for key in raw_data.keys() if key != "SequenceNumber"] # converting to list for iterability
+    feature_list: list = [key for key in raw_data.keys() if key not in ("SequenceNumber", "User")] # converting to list for iterability
     # Assign an importance of 1 to each feature. The idea is to compare two features for correlation and if they are correlated, reduce the importance of one feature to 0.
     feature_importance: dict = {key:1 for key in feature_list}
     n: int = max(raw_data["SequenceNumber"]) # n needs to be the number of rows in the data
@@ -60,37 +61,9 @@ def pearson_correlation(raw_data: dict) -> dict:
 
 
 
-# # Classifiers
-# def knn_euclidean(training_data, classifier_list, test_point, k):
-#     distances = []
-#     for i in range(len(training_data)):
-#         distance = np.sqrt( np.sum( (np.array(test_point) - np.array(training_data[i]))**2 ) )
-#         distances.append((distance, classifier_list[i]))
-#     distances.sort(key=lambda x: x[0])
-#     k_nearest_labels = [label for _, label in distances[:k]]
-#     return Counter(k_nearest_labels).most_common(1)[0][0]
 
 
-
-
-# def knn_manhattan(training_data, classifier_list, test_point, k):
-#     distances = []
-#     for i in range(len(training_data)):
-#         distance = ( np.sum( np.array(test_point) - np.array(training_data[i]) ) )
-#         distances.append((distance, classifier_list[i]))
-#     distances.sort(key=lambda x: x[0])
-#     k_nearest_labels = [label for _, label in distances[:k]]
-#     return Counter(k_nearest_labels).most_common(1)[0][0]
-
-
-# # Kolmogorov-Smirno Test
-# train_data: list = []
-# def kolmogorov_smirnov_classifier(data_row: dict) -> None:
-#     train_data.append(data_row)
-
-
-
-def kolmogorov_smirnov_test(train_data: list[dict], test_data: dict) -> bool|Error:
+def kolmogorov_smirnov_test(train_data: dict, test_data: dict) -> bool|Error:
     # returns a boolean except on error, which then returns None
     try:
         user: str = test_data["user"]
@@ -113,6 +86,25 @@ def kolmogorov_smirnov_test(train_data: list[dict], test_data: dict) -> bool|Err
 
 
 
+def csv_to_python() -> dict:
+    with open('master_dict_output.csv', 'r') as csv:
+        matrix: list[str] = csv.readlines()
+        csv.close()
+    max_sequence_number = len(matrix)
+    raw_data_dictionary: dict = { matrix[0].split(',')[j].strip():[ matrix[i].split(',')[j].strip() for i in range( 1, max_sequence_number ) ] for j in range( len( matrix[0].split(',') ) ) }
+    
+    return raw_data_dictionary
+
+
+
+def main():
+    # Step 1:
+    #   create the data dictionary from the csv file
+    raw_data_in_table_form: dict = csv_to_python()
+
+
+
+
 # training_data = [[51, 565], [654, 54], [6541, 654], [65, 56], [321, 48], [652, 98]]
 # classifier_list = ['person', 'imposter', 'person', 'person', 'imposter', 'imposter']
 
@@ -125,3 +117,26 @@ def kolmogorov_smirnov_test(train_data: list[dict], test_data: dict) -> bool|Err
 
 # Training data is full data
 # Testing data will be a seperate
+
+
+# # Classifiers
+# def knn_euclidean(training_data, classifier_list, test_point, k):
+#     distances = []
+#     for i in range(len(training_data)):
+#         distance = np.sqrt( np.sum( (np.array(test_point) - np.array(training_data[i]))**2 ) )
+#         distances.append((distance, classifier_list[i]))
+#     distances.sort(key=lambda x: x[0])
+#     k_nearest_labels = [label for _, label in distances[:k]]
+#     return Counter(k_nearest_labels).most_common(1)[0][0]
+
+
+# def knn_manhattan(training_data, classifier_list, test_point, k):
+#     distances = []
+#     for i in range(len(training_data)):
+#         distance = ( np.sum( np.array(test_point) - np.array(training_data[i]) ) )
+#         distances.append((distance, classifier_list[i]))
+#     distances.sort(key=lambda x: x[0])
+#     k_nearest_labels = [label for _, label in distances[:k]]
+#     return Counter(k_nearest_labels).most_common(1)[0][0]
+
+
