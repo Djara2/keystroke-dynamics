@@ -223,6 +223,9 @@ int main(int argc, char **argv) {
 				}
 			} // end ev.type == EV_KEY
 		} // end data collection loop
+
+		memset(active_keys, 0, sizeof(active_keys));
+		active_keys_count = 0;
 	    
 		// Close the event file we are reading from
 		close(fd);
