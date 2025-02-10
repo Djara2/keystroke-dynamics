@@ -3,6 +3,7 @@
 # import random
 # from scipy.stats import norm, ks_2samp
 from enum import auto, Enum
+from statistics import mean, stdev
 
 
 class Error(Enum):
@@ -19,12 +20,13 @@ class Constant(Enum):
 
 
 # Feature Selection
+# Look at Principal Component Analysis
 def pearson_correlation(raw_data: dict) -> dict:
     # Check to make sure data exists
     if raw_data == None:
         print(f'[pearson_correlation] Data was not found in the raw_data input.\n')
         return Error.NO_DATA
-    feature_list: list = [key for key in raw_data.keys() if key not in ("SequenceNumber", "User")] # converting to list for iterability
+    feature_list: list[str] = [key for key in raw_data.keys() if key not in ("SequenceNumber", "User")] # converting to list for iterability
     # Assign an importance of 1 to each feature. The idea is to compare two features for correlation and if they are correlated, reduce the importance of one feature to 0.
     feature_importance: dict = {key:1 for key in feature_list}
     n: int = max(raw_data["SequenceNumber"]) # n needs to be the number of rows in the data
@@ -60,6 +62,18 @@ def pearson_correlation(raw_data: dict) -> dict:
 
 
 
+def principal_component_analysis(raw_data: dict, raw_data_as_2d_array: list[list[float]]) -> dict:
+    # to perform PCA:
+    # 1. Standardize the data (Convert all data to have a mean of 0 and standard deviation of 1)
+    standard_data: dict = {feature:[ ( feature_index - mean(raw_data[feature] ) ) / stdev(raw_data[feature]) for feature_index in raw_data[feature]] for feature in raw_data.keys()}
+
+    # 2. Get the covariance matrix
+    standard_data_as_2d_array: list[list[float]] = 
+
+    covariance_matrix: list[list[float]] = np.cov(standard_data_as_2d_array)
+
+    return covariance_matrix
+
 
 
 
@@ -92,7 +106,8 @@ def csv_to_python() -> dict:
         csv.close()
     max_sequence_number = len(matrix)
     # row[0] represents the features. The following rows are the data in matrix-ish form. i represents a given row, j represents a column such that data that shares the same j index is in the same column of the table
-    raw_data_dictionary: dict = { matrix[0].split(',')[j].strip():[ matrix[i].split(',')[j].strip() for i in range( 1, max_sequence_number ) ] for j in range( len( matrix[0].split(',') ) ) }
+    features: list[str] = matrix[0].split(',')
+    raw_data_dictionary: dict = { features[j].strip():[ float(matrix[i].split(',')[j].strip()) for i in range( 1, max_sequence_number ) ] for j in range( len( features ) ) }
     
     return raw_data_dictionary
 
@@ -103,8 +118,14 @@ def main():
     #   create the data dictionary from the csv file
     raw_data_in_table_form: dict = csv_to_python()
 
+    raw_data_as_2d_array: list[list[float]] = [raw_data_in_table_form[feature] for feature in raw_data_in_table_form.keys() if feature not in ("SequenceNumber", "User")]
+
+    result = principal_component_analysis(raw_data_in_table_form)
+
+    print(result)
 
 
+main()
 
 # training_data = [[51, 565], [654, 54], [6541, 654], [65, 56], [321, 48], [652, 98]]
 # classifier_list = ['person', 'imposter', 'person', 'person', 'imposter', 'imposter']
