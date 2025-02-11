@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+echo -e -n "Installing scikit-learn (required for SVM)...\t"
+if pip install scikit-learn ; then
+	echo "done!"
+else
+	echo "[ERROR] Something went wrong installing scikit-learn." 
+	echo "        Installation of other dependencies will continue."
+fi
+
+
