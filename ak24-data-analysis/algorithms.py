@@ -84,14 +84,10 @@ def principal_component_analysis(raw_data) -> dict:
     explained_var = np.cumsum(eigenvalues) / np.sum(eigenvalues)
 
     number_of_principal_components: int = np.argmax(explained_var >= 0.8) + 1
-    print(number_of_principal_components)
 
-    u = eigenvectors[:,:number_of_principal_components]
+    unit_matrix = eigenvectors[:,:number_of_principal_components]
 
-    pca_model = PCA(n_components=number_of_principal_components)
-    pca_model.fit(z)
-    x_pca = pca_model.transform(z)
-    selected_dataframe = pandas.Dataframe(x_pca, columns=raw_data['index'])
+    selected_dataframe = pandas.Dataframe(unit_matrix, columns=raw_data.columns.to_numpy().toList())
 
 
     return selected_dataframe
