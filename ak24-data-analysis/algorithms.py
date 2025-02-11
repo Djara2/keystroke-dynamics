@@ -1,9 +1,8 @@
-# import numpy as np
-# from collections import Counter
-# import random
-# from scipy.stats import norm, ks_2samp
+import numpy as np
+import pandas
+from scipy.stats import ks_2samp
 from enum import auto, Enum
-from statistics import mean, stdev
+from sklearn.decomposition import PCA
 
 
 class Error(Enum):
@@ -62,17 +61,40 @@ def pearson_correlation(raw_data: dict) -> dict:
 
 
 
-def principal_component_analysis(raw_data: dict, raw_data_as_2d_array: list[list[float]]) -> dict:
+def principal_component_analysis(raw_data) -> dict:
     # to perform PCA:
     # 1. Standardize the data (Convert all data to have a mean of 0 and standard deviation of 1)
-    standard_data: dict = {feature:[ ( feature_index - mean(raw_data[feature] ) ) / stdev(raw_data[feature]) for feature_index in raw_data[feature]] for feature in raw_data.keys()}
+    # standard_data: dict = {feature:[ ( feature_index - mean(raw_data[feature] ) ) / stdev(raw_data[feature]) for feature_index in raw_data[feature]] for feature in raw_data.keys()}
 
-    # 2. Get the covariance matrix
-    standard_data_as_2d_array: list[list[float]] = 
+    # # 2. Get the covariance matrix
+    # covariance_matrix: list[list[float]] = np.cov(raw_data_as_2d_array)
 
-    covariance_matrix: list[list[float]] = np.cov(standard_data_as_2d_array)
+    raw_mean = raw_data.mean()
+    raw_standard_deviation = raw_data.std()
+    z = (raw_data - raw_mean) / raw_standard_deviation
 
-    return covariance_matrix
+    covariance_matrix = z.cov()
+
+    eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
+
+    eigen_index_descending = eigenvalues.argsort()[::-1]
+    eigenvalues = eigenvalues[eigen_index_descending]
+    eigenvectors = eigenvectors[:,eigen_index_descending]
+
+    explained_var = np.cumsum(eigenvalues) / np.sum(eigenvalues)
+
+    number_of_principal_components: int = np.argmax(explained_var >= 0.8) + 1
+    print(number_of_principal_components)
+
+    u = eigenvectors[:,:number_of_principal_components]
+
+    pca_model = PCA(n_components=number_of_principal_components)
+    pca_model.fit(z)
+    x_pca = pca_model.transform(z)
+    selected_dataframe = pandas.Dataframe(x_pca, columns=raw_data['index'])
+
+
+    return selected_dataframe
 
 
 
@@ -80,18 +102,18 @@ def principal_component_analysis(raw_data: dict, raw_data_as_2d_array: list[list
 def kolmogorov_smirnov_test(train_data: dict, test_data: dict) -> bool|Error:
     # returns a boolean except on error, which then returns None
     try:
-        user: str = test_data["user"]
-        user_data: list[dict] = [user_session for user_session in train_data if user_session["user"] == user]
+        user: str = test_data["User"]
+        user_data: dict = train_data[train_data["User"] == user].drop(columns=["SequenceNumber", "User"], inplace=True)
+        test_data = test_data.drop(columns=["SequenceNumber", "User"], inplace=True)
     except:
         print(f'[kolmogorov_smirnov_test] The user provided was not found within the training data.\n')
         return Error.INVALID_USER
     try:
         # Perform the kolmogorov-smirnov test on the digraph and trigraph independent of each other. 
-        di_ks_statistic, di_p_value = ks_2samp(test_data[user]["digraph"], train_data[user]["digraph"])
-        tri_ks_statistic, tri_p_value = ks_2samp(test_data[user]["trigraph"], train_data[user]["trigraph"])
+        ks_statistic, p_value = ks_2samp(test_data, user_data)
 
         # False represents a rejection of the null hypothesis whereas a True represents a failure to reject the null hypothesis, which in a way means an acceptance.
-        return False if di_p_value < Constant.ALPHA and tri_p_value < Constant.ALPHA else True
+        return False if p_value < Constant.ALPHA  else True
     except Exception as e:
         print(f'[kolmogorov_smirnov_test] An error occured when running the ks_2samp function from the scipy.stats library.\nError from library:\n{e}\n')
         return Error.LIBRARY_FAILURE
@@ -118,47 +140,13 @@ def main():
     #   create the data dictionary from the csv file
     raw_data_in_table_form: dict = csv_to_python()
 
-    raw_data_as_2d_array: list[list[float]] = [raw_data_in_table_form[feature] for feature in raw_data_in_table_form.keys() if feature not in ("SequenceNumber", "User")]
+    pandas_raw_data = pandas.DataFrame(raw_data_in_table_form, index=raw_data_in_table_form.keys())
 
-    result = principal_component_analysis(raw_data_in_table_form)
+    # raw_data_as_2d_array: list[list[float]] = [raw_data_in_table_form[feature] for feature in raw_data_in_table_form.keys() if feature not in ("SequenceNumber", "User")]
+
+    result = principal_component_analysis(pandas_raw_data)
 
     print(result)
 
 
 main()
-
-# training_data = [[51, 565], [654, 54], [6541, 654], [65, 56], [321, 48], [652, 98]]
-# classifier_list = ['person', 'imposter', 'person', 'person', 'imposter', 'imposter']
-
-# predicted_classifier_euclidean = knn_euclidean(training_data, classifier_list, test_point, k)
-# predicted_classifier_manhattan = knn_manhattan(training_data, classifier_list, test_point, k)
-
-# print(predicted_classifier_euclidean)
-# print(predicted_classifier_manhattan)
-
-
-# Training data is full data
-# Testing data will be a seperate
-
-
-# # Classifiers
-# def knn_euclidean(training_data, classifier_list, test_point, k):
-#     distances = []
-#     for i in range(len(training_data)):
-#         distance = np.sqrt( np.sum( (np.array(test_point) - np.array(training_data[i]))**2 ) )
-#         distances.append((distance, classifier_list[i]))
-#     distances.sort(key=lambda x: x[0])
-#     k_nearest_labels = [label for _, label in distances[:k]]
-#     return Counter(k_nearest_labels).most_common(1)[0][0]
-
-
-# def knn_manhattan(training_data, classifier_list, test_point, k):
-#     distances = []
-#     for i in range(len(training_data)):
-#         distance = ( np.sum( np.array(test_point) - np.array(training_data[i]) ) )
-#         distances.append((distance, classifier_list[i]))
-#     distances.sort(key=lambda x: x[0])
-#     k_nearest_labels = [label for _, label in distances[:k]]
-#     return Counter(k_nearest_labels).most_common(1)[0][0]
-
-
