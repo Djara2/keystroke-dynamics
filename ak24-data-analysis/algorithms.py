@@ -57,7 +57,7 @@ def pearson_correlation(raw_data: dict) -> dict:
     # returning the feature importance dictionary. This will be used to know which features are important if they have a 1. 
     for feature in raw_data:
         if(feature_importance[feature] == 0):
-            raw_data.drop(columns=feature, inplace=True)
+            raw_data.drop(columns=[feature], inplace=True)
     return raw_data
 
 
