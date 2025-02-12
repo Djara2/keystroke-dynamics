@@ -3,13 +3,13 @@ import pandas as pd
 import numpy as np
 import keras
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Input
-from tensorflow.keras.regularizers import l2
+from tensorflow.keras.models import Sequential # type: ignore
+from tensorflow.keras.layers import Dense, Input # type: ignore
+from tensorflow.keras.regularizers import l2 # type: ignore
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping # type: ignore
 
 # Print TensorFlow version
 print(f"Using TensorFlow version: {tf.__version__}")
