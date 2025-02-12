@@ -1,8 +1,8 @@
-import numpy as np
-import pandas
-from scipy.stats import ks_2samp
+# import numpy as np
+# import pandas
+# from scipy.stats import ks_2samp
 from enum import auto, Enum
-from sklearn.decomposition import PCA
+# from sklearn.decomposition import PCA
 
 
 class Error(Enum):
@@ -25,18 +25,17 @@ def pearson_correlation(raw_data: dict) -> dict:
     if raw_data == None:
         print(f'[pearson_correlation] Data was not found in the raw_data input.\n')
         return Error.NO_DATA
-    feature_list: list[str] = [key for key in raw_data.keys() if key not in ("SequenceNumber", "User")] # converting to list for iterability
     # Assign an importance of 1 to each feature. The idea is to compare two features for correlation and if they are correlated, reduce the importance of one feature to 0.
-    feature_importance: dict = {key:1 for key in feature_list}
-    n: int = max(raw_data["SequenceNumber"]) # n needs to be the number of rows in the data
+    feature_importance: dict = {key:1 for key in raw_data.keys()}
+    n: int = max(raw_data[raw_data.keys()[0]]) # n needs to be the number of rows in the data
     for index_left in range(n-1):
-        left_feature: str = feature_list[index_left]
+        left_feature: str = raw_data[index_left]
         for index_right in range(index_left, n-1):
-            right_feature: str = feature_list[index_right]
+            right_feature: str = raw_data[index_right]
             if(feature_importance[left_feature] and feature_importance[right_feature]):
                 #  The link to the formula used: https://www.geeksforgeeks.org/pearson-correlation-coefficient/
-                x_data: list = feature_list[index_left]
-                y_data: list = feature_list[index_right]
+                x_data: list = raw_data[index_left]
+                y_data: list = raw_data[index_right]
                 xy_data: list = [x+y for x in x_data for y in y_data]
                 x_squared: list = [x*x for x in x_data]
                 y_squared: list = [y*y for y in y_data]
@@ -56,6 +55,9 @@ def pearson_correlation(raw_data: dict) -> dict:
                 if(r_value < Constant.CORRELATION_COEFFICIENT):
                     feature_importance[right_feature] = 0
     # returning the feature importance dictionary. This will be used to know which features are important if they have a 1. 
+    for feature in raw_data:
+        if(feature_importance[feature] == 0):
+            raw_data.drop(columns=feature, inplace=True)
     return feature_importance
 
 
@@ -145,4 +147,18 @@ def main():
     print(result)
 
 
-main()
+# main()
+
+
+
+
+def test():
+    array = [["hello", "goodbye"], [0, 2], [5, 6]]
+
+    array = array[::-1]
+
+    print(array)
+
+
+
+test()
