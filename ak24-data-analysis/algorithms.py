@@ -4,23 +4,6 @@ from scipy.stats import ks_2samp
 from enum import auto, Enum
 # from sklearn.decomposition import PCA
 
-"""
-New sample thing might not be an issue?
-
-New feature selection method?
-
-Loop in rest of classifers to main code
-
-Between 20 - 30 session for each
-shortest 10
-increment in 5
-max at a minute
-
-START at 30 sessions 
-
-Generate a prompt for user
-"""
-
 class Error(Enum):
     SUCCESS = auto()
     INVALID_USER = auto()
