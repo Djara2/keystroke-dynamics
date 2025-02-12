@@ -1,11 +1,15 @@
 from read_binary import read_keystroke_logger_output
 from pylibgrapheme import create_grapheme_map, get_combinations, GraphemeType
 from masterDictionaryBuilder import create_combined_dictionary, write_to_csv, update_master_dictionary, print_master_dictionary
+
 from knn import preprocess_features, train_knn
+from algorithms import principal_component_analysis, pearson_correlation
+from neural_net import standardize_data, run_neural_net
 
 import pandas
 import numpy as np
 import argparse
+import matplotlib.pyplot as plt
 
 def process_sessions(sessions, user_info):
    
@@ -55,7 +59,22 @@ def perform_knn(X, y):
     print("\nTrue vs Predicted Labels:")
     for true_label, pred_label in zip(y_test, y_pred):
         print(f"True: {true_label}, Predicted: {pred_label}")
-        
+
+def perform_neural_net(X, y):
+
+    X_scaled, y_encoded = standardize_data(X, y)
+
+    history = run_neural_net(X_scaled, y_encoded)
+
+    # Plot accuracy over epochs
+    plt.plot(history.history["accuracy"], label="Train Accuracy")
+    plt.plot(history.history["val_accuracy"], label="Validation Accuracy")
+    plt.title("Model Accuracy Over Epochs")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.show()
+
 def parse_arguments():
     # Initialize argument parser
     parser = argparse.ArgumentParser(description="Process multiple file paths.")
@@ -98,8 +117,19 @@ def main():
     # Read in the csv file data to use with classifers
     X, y = read_csv_file("master_dict_output.csv")
 
+    # Perform feaure selection with PCA
+    #selected_features = principal_component_analysis(X)
+
+    # Make complex numbers into real numbers and make it into a dataframe for classifers
+    #X_pca = selected_features.astype(np.float64)
+    #X_pca = pandas.DataFrame(X_pca, columns=selected_features.columns)
+
+
     # Perform KNN
     perform_knn(X, y)
+
+    # Neural Net
+    perform_neural_net(X, y)
 
 
 
