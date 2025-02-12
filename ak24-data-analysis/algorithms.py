@@ -58,7 +58,7 @@ def pearson_correlation(raw_data: dict) -> dict:
     for feature in raw_data:
         if(feature_importance[feature] == 0):
             raw_data.drop(columns=feature, inplace=True)
-    return feature_importance
+    return raw_data
 
 
 
