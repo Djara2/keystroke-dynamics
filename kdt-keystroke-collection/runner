@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+
+echo -n "Enter your name: "
+read user
+
+echo -n "Enter your email: "
+read email
+
+echo -n "Enter your major: "
+read major
+
+echo -n "Enter the ABSOLUTE path of your device file: "
+read device_file
+
+echo -n "Enter the number of samples to produce: "
+read number_of_samples
+
+echo -n "Enter the starting duration: "
+read current_duration
+
+echo -n "Enter the maximum duration: "
+read max_duration
+
+echo ""
+echo "NOTE: This will produce $number_of_samples files representing $current_duration-second typing tests."
+echo "----- Your output binary files will be named automatically based on your username, duration, and iteration."
+echo "      In other words, you will make $number_of_samples unique files. This is done to mitigate data loss from"
+echo "      potential program crashes, which could be especially frustrating when performing long duration tests."
+echo -n "Accept? [Y/N]: "
+read accept
+
+case $accept in 
+	"y" | "Y" | "yes" | "YES" )
+		echo "Beginning typing tests..."	
+		;;
+	*)
+		echo "No tests will be taken."
+		exit 1
+esac
+
+increment=5
+sets_created=0
+seconds_typed=0
+minutes_typed=0
+hours_typed=0
+seconds_typed_this_session=0
+
+while [ $current_duration -le $max_duration ]
+do
+	# Take the exams for the current duration
+	test_number=1
+	next_test_number=2
+	while [ $test_number -le $number_of_samples ]
+	do
+		output="data/$user-d$current_duration-$test_number.bin"
+		if sudo ./kdt --user $user --email $email --major $major --number 1 --duration $current_duration --device-file $device_file -f --output $output ; then
+			echo -n "Test #$test_number complete."	
+			test_number=$((test_number + 1))
+			echo "Starting test #$test_number..."
+		else
+			echo "Something went wrong while taking test #$test_number. Non-zero return code from kdt runner command."
+		fi
+	done
+	
+	# Statistics - use "bc" tool to do floating point (bash is int-only)
+	sets_created=$((sets_created + 1))
+
+	seconds_typed_this_session=$((current_duration * number_of_samples))
+	seconds_typed=$((seconds_typed + seconds_typed_this_session))
+	
+	minutes_typed=$(echo "scale=2; $seconds_typed / 60" | bc)
+	hours_typed=$(echo "scale=2; $minutes_typed / 60" | bc)
+
+
+	# Update user on their progress
+	echo ""
+	echo "CHECKPOINT: You just finished all $number_of_samples of the $current_duration-second tests."
+	current_duration=$((current_duration + increment))
+
+	# Preemptively exit program if that was the final typing test
+	if [ $current_duration -gt $max_duration ] ; then
+		echo "Congratulations. That was the final set of typing tests."
+		echo "Overall, you typed for $seconds_typed seconds ($minutes_typed minutes or $hours_typed hours). Your last" 
+		echo "$number_of_samples typing tests required $seconds_typed_this_session seconds of typing."
+		echo ""
+		echo "There are no more typing tests. The program will now end. Goodbye <3"
+		exit 0
+	fi	
+	
+	# Tell user what the next iteration of typing tests will be like
+	echo "----------- The next $number_of_samples tests will last for $current_duration seconds."
+	echo "            So far, you have typed for $seconds_typed seconds total. That's $minutes_typed minutes, and $hours_typed hours." 
+	echo "            You typed a total of $seconds_typed_this_session for the last $number_of_samples typing tests."
+
+	# Get user consent to take next set of exams
+	echo -n "Begin next $number_of_samples tests ($current_duration sec/each)? [Y/N]: "
+	read accept
+		
+	case $accept in 
+		"y" | "Y" | "yes" | "YES" )
+			echo "Beginning typing tests..."	
+			;;
+		*)
+			echo "No more tests will be taken."
+			exit 1
+	esac
+done

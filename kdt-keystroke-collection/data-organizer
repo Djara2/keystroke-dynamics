@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+declare -a durations=(10 15 20 25 30 35 40 45 50 55 60)
+declare -a people=("dave" "ben" "cordus" "ethan")
+
+for duration in "${durations[@]}"
+do
+	if [ ! -d "data/$duration-second-tests" ]; then
+		mkdir "data/$duration-second-tests"
+	fi
+
+	for person in "${people[@]}"
+	do
+		mv data/$person-d$duration* data/$duration-second-tests
+	done
+done
