@@ -5,6 +5,7 @@ from masterDictionaryBuilder import create_combined_dictionary, write_to_csv, up
 from knn import preprocess_features, train_knn
 from algorithms import principal_component_analysis, pearson_correlation
 from neural_net import standardize_data, run_neural_net
+from ova_svm import ova_svm
 
 import pandas
 import numpy as np
@@ -51,6 +52,7 @@ def perform_knn(X, y):
     accuracy, conf_matrix, class_report, (y_test, y_pred) = train_knn(X_scaled, y, k=5)
 
     # Print results
+    print("\nK-Nearest Neighbors (KNN):")
     print("\nConfusion Matrix:\n", conf_matrix)
     print("\nAccuracy:", accuracy)
     print("\nClassification Report:\n", class_report)
@@ -74,6 +76,14 @@ def perform_neural_net(X, y):
     plt.ylabel("Accuracy")
     plt.legend()
     plt.show()
+
+def perform_svm(X, y):
+
+    output = ova_svm(X, y)
+    print("\nSupport Vector Machine (SVM):")
+    print("decision scores: {}".format(output.decision_scores))
+    print("final predictions: {}".format(output.final_predictions))
+    print("accuracy_score: {}".format(output.accuracy_score))
 
 def parse_arguments():
     # Initialize argument parser
@@ -127,6 +137,9 @@ def main():
 
     # Perform KNN
     perform_knn(X, y)
+
+    # SVM
+    perform_svm(X, y)
 
     # Neural Net
     perform_neural_net(X, y)
