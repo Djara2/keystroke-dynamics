@@ -3,7 +3,7 @@ import struct
 
 # Reads the binary file data output from the keystroke logger
 def read_keystroke_logger_output(file_path):
-    print(f"Reading {file_path}")
+    #print(f"Reading {file_path}")
 
     # Create variable to store the sessions data and user info
     sessions_data = []
@@ -59,26 +59,44 @@ def read_keystroke_logger_output(file_path):
 
             # Read flight times and save flight_times array to current session's data
             flight_times_length = struct.unpack("Q", file.read(8))[0]  # [8 bytes] (Q for unsigned long long integer)
-            session["flight_times"] = list(struct.unpack(f"{flight_times_length}Q", file.read(flight_times_length * 8))) if flight_times_length > 0 else []
-
+            flight_times = list(struct.unpack(f"{flight_times_length}Q", file.read(flight_times_length * 8)))
+            session["flight_times"] = [abs(convert_to_signed(ft)) for ft in flight_times]
             # Save the current session to the list of all sessions in the file
             sessions_data.append(session)
 
     # Return user_info and the session data
     return user_info, sessions_data
 
+def convert_to_signed(value, threshold=500000):
+    if value > threshold:
+        return value - (1 << 64)
+    return value  
     
 
 if __name__ == '__main__':
-    file_path = "./output/infoTest.bin"
-    user_info, sessions_data = read_keystroke_logger_output(file_path)
+    direct = "../kdt-keystroke-collection/data/10-second-tests"
 
-    print(f"User Info: {user_info}")
+    import os
+    import numpy as np
+    for file_path in os.listdir(direct):
+        full_path = os.path.join(direct, file_path)
 
-    for i, session in enumerate(sessions_data):
-        print(f"Session {i+1}: User: NOT IMPLEMENTED YET")
-        print(f"    Keystrokes Length: {len(session['keystrokes'])}")
-        print(f"    Keystrokes: {session['keystrokes'][:2]}")
-        print(f"    Time Deltas: {session['time_deltas'][:2]}")
-        print(f"    Dwell Times: {session['dwell_times'][:2]}")
-        print(f"    Flight TImes: {session['flight_times'][:2]}")
+        user_info, sessions_data = read_keystroke_logger_output(full_path)
+
+        #print(f"User Info: {user_info}")
+
+        for i, session in enumerate(sessions_data):
+            #print(f"Session {i+1}: User: NOT IMPLEMENTED YET")
+            #print(f"    Keystrokes Length: {len(session['keystrokes'])}")
+            #print(f"    Time Deltas: {session['time_deltas']}")
+            #print(f"    Dwell Times: {session['dwell_times']}")
+            print(f"    Flight Times: {session['flight_times']}")
+            if any(x > 5000 for x in session['time_deltas']):
+                print("Array contains a negative value.")
+            if any(x > 5000 for x in session['dwell_times']):
+                print("Array contains a negative value.")
+            if any(x > 5000 for x in session['flight_times']):
+                print("Array contains a negative value.")
+
+
+
