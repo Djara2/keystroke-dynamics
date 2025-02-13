@@ -104,17 +104,12 @@ unsigned long* get_flight_times_in_milliseconds(struct keystroke *keystrokes, si
 		
 	// Actually find flight times
 	for(size_t i = 0; i < keystrokes_length - 1; i++) {
-		if(keystrokes[i + 1].press_time.tv_sec > keystrokes[i].release_time.tv_sec || keystrokes[i + 1].press_time.tv_nsec > keystrokes[i].release_time.tv_nsec) {
-			unsigned long whole_seconds_difference_in_ms = 1000 * (keystrokes[i + 1].press_time.tv_sec - keystrokes[i].release_time.tv_sec);
-			unsigned long nanoseconds_difference_in_ms   = (keystrokes[i + 1].press_time.tv_nsec - keystrokes[i].release_time.tv_nsec) / 1000000;
-			flight_times[i] = whole_seconds_difference_in_ms + nanoseconds_difference_in_ms;
-		}
-		else {
-			unsigned long whole_seconds_difference_in_ms = 1000 * (keystrokes[i].release_time.tv_sec - keystrokes[i + 1].press_time.tv_sec);
-			unsigned long nanoseconds_difference_in_ms   = (keystrokes[i].release_time.tv_nsec - keystrokes[i + 1].press_time.tv_nsec) / 1000000;
-			flight_times[i] = whole_seconds_difference_in_ms + nanoseconds_difference_in_ms;
-		}
+		unsigned long whole_seconds_difference_in_ms = 1000 * labs(keystrokes[i + 1].press_time.tv_sec - keystrokes[i].release_time.tv_sec);
+		unsigned long nanoseconds_difference_in_ms   = labs(keystrokes[i + 1].press_time.tv_nsec - keystrokes[i].release_time.tv_nsec) / 1000000;
+
+		flight_times[i] = whole_seconds_difference_in_ms + nanoseconds_difference_in_ms;
 	}
+
 	
 	return flight_times;
 }
