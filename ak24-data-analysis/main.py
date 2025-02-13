@@ -3,7 +3,7 @@ from pylibgrapheme import create_grapheme_map, get_combinations, GraphemeType
 from masterDictionaryBuilder import create_combined_dictionary, write_to_csv, update_master_dictionary, print_master_dictionary
 
 from knn import preprocess_features, train_knn
-from algorithms import kolmogorov_smirnov_test
+from algorithms import kolmogorov_smirnov_test, principal_component_analysis
 from neural_net import standardize_data, run_neural_net
 from ova_svm import ova_svm
 
@@ -13,6 +13,8 @@ import argparse
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from sklearn.model_selection import train_test_split
+import os
+
 
 
 def process_sessions(sessions, user_info):
@@ -142,36 +144,41 @@ def parse_arguments():
     # Initialize argument parser
     parser = argparse.ArgumentParser(description="Process multiple file paths.")
 
-    # Add argument for multiple file paths
+    # Add argument for multiple directory paths
     parser.add_argument(
-        'file_paths', 
+        'directories', 
         nargs='+',  # '+' means one or more arguments are required
-        help="Paths to the input files"
+        help="Paths to the directories of the file"
     )
 
     # Parse the arguments
     args = parser.parse_args()
     
-    return args.file_paths  
+    return args.directories 
 
 def main():
-    # Get file paths from arguments
-    file_paths = parse_arguments()
+    # Get directory paths from arguments
+    directories = parse_arguments()
 
     # Print out the paths for verification
-    print(f"Files to process: {file_paths}")
+    print(f"Directories to process: {directories}")
     
-    # Loop through the file paths
-    for file_path in file_paths:
-        # Read sessions from the binary file
-        user_info, sessions_data = read_keystroke_logger_output(file_path)
+    # Loop through directories
+    for directory in directories:
+        # Loop through the file paths
+        for file_path in os.listdir(directory):
+            print(f"File path: {file_path}")
+            full_file_path = os.path.join(directory, file_path)
+            
+            # Read sessions from the binary file
+            user_info, sessions_data = read_keystroke_logger_output(full_file_path)
 
-        if sessions_data:
-            # Process sessions and update master dictionary
-            process_sessions(sessions_data, user_info)
+            if sessions_data:
+                # Process sessions and update master dictionary
+                process_sessions(sessions_data, user_info)
 
-        else:
-            print("[ERROR] No valid session data found.")
+            else:
+                print("[ERROR] No valid session data found.")
 
     
     # Write the master dictionary to a csv file
