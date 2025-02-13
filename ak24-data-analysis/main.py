@@ -3,7 +3,7 @@ from pylibgrapheme import create_grapheme_map, get_combinations, GraphemeType
 from masterDictionaryBuilder import create_combined_dictionary, write_to_csv, update_master_dictionary, print_master_dictionary
 
 from knn import preprocess_features, train_knn
-from algorithms import principal_component_analysis, pearson_correlation
+from algorithms import kolmogorov_smirnov_test, principal_component_analysis
 from neural_net import standardize_data, run_neural_net
 from ova_svm import ova_svm
 
@@ -11,6 +11,11 @@ import pandas
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.model_selection import train_test_split
+import os
+
+
 
 def process_sessions(sessions, user_info):
    
@@ -83,42 +88,97 @@ def perform_svm(X, y):
     print("\nSupport Vector Machine (SVM):")
     print("decision scores: {}".format(output.decision_scores))
     print("final predictions: {}".format(output.final_predictions))
-    print("accuracy_score: {}".format(output.accuracy_score))
+    print("accuracy_score: {}\n".format(output.accuracy_score))
+
+
+def perform_ks_test(X, y):
+    # Split data into train and test sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Store predictions
+    y_pred = []
+
+    # Add 'User' column back to X_train and X_test for kolmogrov
+    X_train["User"] = y_train
+    X_test["User"] = y_test
+
+    # Run KS test on each test sample
+    for i, (index, test_sample) in enumerate(X_test.iterrows()):
+        # Extract the user from the test sample
+        user = y_test.iloc[i]
+
+        # Prepare the test row (add user info back to the test row)
+        test_row = test_sample.to_frame().T  # Convert to DataFrame (single row)
+        test_row["User"] = user  # Add user information to test_row
+
+        # Call the Kolmogorov-Smirnov test with the train data and the test sample
+        result = kolmogorov_smirnov_test(X_train, test_row)
+
+        # Assign classification based on the result
+        if result:  
+            predicted_label = y_train.mode()[0]
+        else:  
+            predicted_label = "Unknown"
+
+        y_pred.append(predicted_label)
+
+    # Convert lists to NumPy arrays for evaluation
+    y_pred = np.array(y_pred)
+    y_test = np.array(y_test)
+
+    # Compute evaluation metrics
+    accuracy = accuracy_score(y_test, y_pred)  # Calculate accuracy
+    conf_matrix = confusion_matrix(y_test, y_pred, labels=np.unique(y))
+    
+    # Avoid UndefinedMetricWarning: handle zero division using zero_division=0
+    class_report = classification_report(y_test, y_pred, labels=np.unique(y), zero_division=0)
+
+    # Print results
+    print("\nKolmogorov-Smirnov Classifier:")
+    print("\nConfusion Matrix:\n", conf_matrix)
+    print("\nAccuracy:", accuracy)  # Print the accuracy
+    print("\nClassification Report:\n", class_report)
+
 
 def parse_arguments():
     # Initialize argument parser
     parser = argparse.ArgumentParser(description="Process multiple file paths.")
 
-    # Add argument for multiple file paths
+    # Add argument for multiple directory paths
     parser.add_argument(
-        'file_paths', 
+        'directories', 
         nargs='+',  # '+' means one or more arguments are required
-        help="Paths to the input files"
+        help="Paths to the directories of the file"
     )
 
     # Parse the arguments
     args = parser.parse_args()
     
-    return args.file_paths  
+    return args.directories 
 
 def main():
-    # Get file paths from arguments
-    file_paths = parse_arguments()
+    # Get directory paths from arguments
+    directories = parse_arguments()
 
     # Print out the paths for verification
-    print(f"Files to process: {file_paths}")
+    print(f"Directories to process: {directories}")
     
-    # Loop through the file paths
-    for file_path in file_paths:
-        # Read sessions from the binary file
-        user_info, sessions_data = read_keystroke_logger_output(file_path)
+    # Loop through directories
+    for directory in directories:
+        # Loop through the file paths
+        for file_path in os.listdir(directory):
+            print(f"File path: {file_path}")
+            full_file_path = os.path.join(directory, file_path)
+            
+            # Read sessions from the binary file
+            user_info, sessions_data = read_keystroke_logger_output(full_file_path)
 
-        if sessions_data:
-            # Process sessions and update master dictionary
-            process_sessions(sessions_data, user_info)
+            if sessions_data:
+                # Process sessions and update master dictionary
+                process_sessions(sessions_data, user_info)
 
-        else:
-            print("[ERROR] No valid session data found.")
+            else:
+                print("[ERROR] No valid session data found.")
 
     
     # Write the master dictionary to a csv file
@@ -127,13 +187,11 @@ def main():
     # Read in the csv file data to use with classifers
     X, y = read_csv_file("master_dict_output.csv")
 
-    # Perform feaure selection with PCA
-    #selected_features = principal_component_analysis(X)
+    # FEATURE SELECTION
 
-    # Make complex numbers into real numbers and make it into a dataframe for classifers
-    #X_pca = selected_features.astype(np.float64)
-    #X_pca = pandas.DataFrame(X_pca, columns=selected_features.columns)
 
+    # Run Kolmogrov
+    perform_ks_test(X, y)
 
     # Perform KNN
     perform_knn(X, y)

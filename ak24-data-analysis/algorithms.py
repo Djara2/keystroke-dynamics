@@ -1,9 +1,8 @@
-# import numpy as np
-# import pandas
-# from scipy.stats import ks_2samp
+import numpy as np
+import pandas
+from scipy.stats import ks_2samp
 from enum import auto, Enum
 # from sklearn.decomposition import PCA
-
 
 class Error(Enum):
     SUCCESS = auto()
@@ -89,14 +88,16 @@ def principal_component_analysis(raw_data) -> dict:
 
     unit_matrix = eigenvectors[:,:number_of_principal_components]
 
-    selected_dataframe = pandas.Dataframe(unit_matrix, columns=raw_data.columns.to_numpy().toList())
+    unit_matrix_data_frame = pandas.DataFrame(unit_matrix, index=raw_data.columns.to_numpy().tolist(), columns=[f"PC.{x}" for x in range(number_of_principal_components)])
+
+    selected_dataframe = z @ unit_matrix_data_frame
 
 
     return selected_dataframe
 
 
 
-
+"""
 def kolmogorov_smirnov_test(train_data: dict, test_data: dict) -> bool|Error:
     # returns a boolean except on error, which then returns None
     try:
@@ -115,7 +116,28 @@ def kolmogorov_smirnov_test(train_data: dict, test_data: dict) -> bool|Error:
     except Exception as e:
         print(f'[kolmogorov_smirnov_test] An error occured when running the ks_2samp function from the scipy.stats library.\nError from library:\n{e}\n')
         return Error.LIBRARY_FAILURE
+"""
 
+
+def kolmogorov_smirnov_test(train_data: pandas.DataFrame, test_data: pandas.DataFrame) -> bool|Error:
+    # returns a boolean except on error, which then returns None
+    try:
+        user: str = test_data["User"].iloc[0]
+        user_data: dict = train_data[train_data["User"] == user].drop(columns=["User"])
+        
+        test_data = test_data.drop(columns=["User"])
+    except:
+        print(f'[kolmogorov_smirnov_test] The user provided was not found within the training data.\n')
+        return Error.INVALID_USER
+    try:
+        # Perform the kolmogorov-smirnov test on the digraph and trigraph independent of each other. 
+        ks_statistic, p_value = ks_2samp(test_data, user_data)
+
+        # False represents a rejection of the null hypothesis whereas a True represents a failure to reject the null hypothesis, which in a way means an acceptance.
+        return False if np.any(p_value) < 0.05 else True
+    except Exception as e:
+        print(f'[kolmogorov_smirnov_test] An error occured when running the ks_2samp function from the scipy.stats library.\nError from library:\n{e}\n')
+        return Error.LIBRARY_FAILURE
 
 
 
@@ -161,4 +183,4 @@ def test():
 
 
 
-test()
+#test()
