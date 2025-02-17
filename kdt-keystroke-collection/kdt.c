@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
 						fflush(stdout);
 					}
 					// Handles all other characters
-					else if (ascii_character && keystrokes_length < BUFFER_SIZE - 1) {
+					else if (ascii_character) {
 						active_keys[ev.code].c = ascii_character;
 						active_keys_count++;
 						printf("%c", ascii_character);
