@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+echo "Make sure you are in su if you using Debian."
+echo "When the laptop is plugged into the K10, the VM uses event0."
+echo "--> Idk which event file is used when the laptop's regular keyboard is used."
+echo "    Maybe it is still event0? Need to experiment."
+
+echo -n "Duration of tests?: "
+read duration
+
+echo -n "Number of tests?: "
+read number
+
+echo -n "Output file name?: "
+read output
+
+./kdt -u dave -e dave@coolmail.com -m compsci -f -d $duration -n $number -o $output -v /dev/input/event0
