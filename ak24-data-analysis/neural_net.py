@@ -14,60 +14,11 @@ from tensorflow.keras.callbacks import EarlyStopping # type: ignore
 # Print TensorFlow version
 print(f"Using TensorFlow version: {tf.__version__}")
 
-# Global variable to prevent needing to pass it back to main script
-ohe = OneHotEncoder()
+def run_neural_net(X_scaled, y):
+    # One-hot encode the labels using OneHotEncoder
+    ohe = OneHotEncoder()
+    y_encoded = ohe.fit_transform(y.values.reshape(-1, 1)).toarray()  # One-hot encode labels
 
-# Handled in the main script for all classifers
-"""
-def load_data():
-    # Specify the correct path to the CSV
-    csv_file = "master_dict_output.csv"
-
-    # Check if the file exists before proceeding
-    if not os.path.exists(csv_file):
-        raise FileNotFoundError(f"Error: '{csv_file}' not found in {os.getcwd()}")
-
-    # Load the dataset
-    dataset = pd.read_csv(csv_file)
-
-    return dataset
-
-def process_dataset(dataset):
-    # Ensure necessary columns exist
-    if "User" not in dataset.columns or "SequenceNumber" not in dataset.columns:
-        raise ValueError("Error: Required columns ('User', 'SequenceNumber') not found in dataset.")
-
-    # Drop `SequenceNumber` column
-    dataset = dataset.drop(columns=["SequenceNumber"])
-
-    # Extract features and labels
-    X = dataset.drop(columns=["User"])  # Keystroke timing features
-    y = dataset["User"]  # User classification labels
-
-    return X, y
-"""
-# Standarizes the data for the neural network
-def standardize_data(X, y):
-    # Gets the values from the columns
-    X = X.values
-    y = y.values
-
-    # Standardize features while preserving -1 values
-    scaler = StandardScaler()
-    mask = X != -1  # Mask to avoid modifying -1 values
-    X_scaled = X.copy()
-
-    for col in range(X.shape[1]):
-        valid_values = X[:, col][mask[:, col]]  # Extract non -1 values
-        if valid_values.size > 0:  # Ensure there's data to scale
-            X_scaled[:, col][mask[:, col]] = scaler.fit_transform(valid_values.reshape(-1, 1)).flatten()
-
-    # One-hot encode the labels
-    y_encoded = ohe.fit_transform(y.reshape(-1, 1)).toarray()
-
-    return X_scaled, y_encoded
-
-def run_neural_net(X_scaled, y_encoded):
     # Split dataset into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y_encoded, test_size=0.2, random_state=42)
 

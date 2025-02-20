@@ -2,10 +2,11 @@ from read_binary import read_keystroke_logger_output
 from pylibgrapheme import create_grapheme_map, get_combinations, GraphemeType
 from masterDictionaryBuilder import create_combined_dictionary, write_to_csv, update_master_dictionary, print_master_dictionary
 
-from knn import preprocess_features, train_knn
-from algorithms import kolmogorov_smirnov_test, principal_component_analysis
-from neural_net import standardize_data, run_neural_net
+from knn import knn
+from algorithms import kolmogorov_smirnov_test, Error
+from neural_net import run_neural_net
 from ova_svm import ova_svm
+from feature_selection import feature_selection, feature_select_with_threshold
 
 import pandas
 import numpy as np
@@ -13,6 +14,7 @@ import argparse
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
 import os
 
 
@@ -24,8 +26,8 @@ def process_sessions(sessions, user_info):
         grapheme_map_error_code, grapheme_map = create_grapheme_map(session, GraphemeType.DIGRAPH)
 
         # Temperary fix, since these two lists have 1 less value than the rest
-        grapheme_map["time_delta"].append(0)
-        grapheme_map["flight_time"].append(0)
+        grapheme_map["time_delta"].append(-1)
+        grapheme_map["flight_time"].append(-1)
 
         # If a grapheme map exists
         if grapheme_map:
@@ -38,23 +40,19 @@ def process_sessions(sessions, user_info):
         else:
             print("[ERROR] Failed to process session.")
 
-def read_csv_file(csv_file_path) -> tuple[pandas.DataFrame, pandas.Series]:
-    # Load in the csv file
+# Function to read the CSV and return features and labels
+def read_csv_file(csv_file_path):
+    """
+    Read the CSV file, return features (X) and labels (y)
+    """
     data_frame = pandas.read_csv(csv_file_path)
-
-    # Drop SequenceNumber (not a feature)
-    data_frame.drop(columns=["SequenceNumber"], inplace=True)
-
-    # Extract features and labels
     y = data_frame["User"]
-    X = data_frame.drop(columns=["User"])
-
+    X = data_frame.drop(columns=["User", "SequenceNumber"])  # Drop 'User' and 'SequenceNumber' columns
     return X, y
 
 def perform_knn(X, y):
     #Peform KNN
-    X_scaled = preprocess_features(X)
-    accuracy, conf_matrix, class_report, (y_test, y_pred) = train_knn(X_scaled, y, k=5)
+    accuracy, conf_matrix, class_report = knn(X, y, 5, "cosine")
 
     # Print results
     print("\nK-Nearest Neighbors (KNN):")
@@ -62,16 +60,19 @@ def perform_knn(X, y):
     print("\nAccuracy:", accuracy)
     print("\nClassification Report:\n", class_report)
 
-    # Show true vs. predicted labels
-    print("\nTrue vs Predicted Labels:")
-    for true_label, pred_label in zip(y_test, y_pred):
-        print(f"True: {true_label}, Predicted: {pred_label}")
+def perform_svm(X, y):
+    # Perform SVM
+    output = ova_svm(X, y)
+
+    # Print results
+    print("\nSupport Vector Machine (SVM):")
+    print("decision scores: {}".format(output.decision_scores))
+    print("final predictions: {}".format(output.final_predictions))
+    print("accuracy_score: {}\n".format(output.accuracy_score))
 
 def perform_neural_net(X, y):
-
-    X_scaled, y_encoded = standardize_data(X, y)
-
-    history = run_neural_net(X_scaled, y_encoded)
+    # Perform Neural Network
+    history = run_neural_net(X, y)
 
     # Plot accuracy over epochs
     plt.plot(history.history["accuracy"], label="Train Accuracy")
@@ -82,55 +83,40 @@ def perform_neural_net(X, y):
     plt.legend()
     plt.show()
 
-def perform_svm(X, y):
-
-    output = ova_svm(X, y)
-    print("\nSupport Vector Machine (SVM):")
-    print("decision scores: {}".format(output.decision_scores))
-    print("final predictions: {}".format(output.final_predictions))
-    print("accuracy_score: {}\n".format(output.accuracy_score))
-
-
 def perform_ks_test(X, y):
-    # Split data into train and test sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Add `User` column back to X since kolmogorov_smirnov_test() requires it
+    X_with_labels = X.copy()
+    X_with_labels["User"] = y  # Restore the User column
+
+    # Split into training and testing sets
+    train_data, test_data = train_test_split(X_with_labels, test_size=0.2, random_state=42)
 
     # Store predictions
     y_pred = []
 
-    # Add 'User' column back to X_train and X_test for kolmogrov
-    X_train["User"] = y_train
-    X_test["User"] = y_test
+    # Iterate through each test sample
+    for _, test_sample in test_data.iterrows():
+        test_sample_df = test_sample.to_frame().T  # Convert single row to DataFrame
 
-    # Run KS test on each test sample
-    for i, (index, test_sample) in enumerate(X_test.iterrows()):
-        # Extract the user from the test sample
-        user = y_test.iloc[i]
+        # Run Kolmogorov-Smirnov test
+        result = kolmogorov_smirnov_test(train_data, test_sample_df)
 
-        # Prepare the test row (add user info back to the test row)
-        test_row = test_sample.to_frame().T  # Convert to DataFrame (single row)
-        test_row["User"] = user  # Add user information to test_row
-
-        # Call the Kolmogorov-Smirnov test with the train data and the test sample
-        result = kolmogorov_smirnov_test(X_train, test_row)
-
-        # Assign classification based on the result
-        if result:  
-            predicted_label = y_train.mode()[0]
+        # Assign classification based on result
+        if result == Error.INVALID_USER or result == Error.LIBRARY_FAILURE:
+            y_pred.append("Unknown")
+        elif result:  
+            y_pred.append(test_sample["User"])  # If True, assign same user
         else:  
-            predicted_label = "Unknown"
-
-        y_pred.append(predicted_label)
+            y_pred.append("Unknown")
 
     # Convert lists to NumPy arrays for evaluation
+    y_test = test_data["User"].values
     y_pred = np.array(y_pred)
-    y_test = np.array(y_test)
 
     # Compute evaluation metrics
-    accuracy = accuracy_score(y_test, y_pred)  # Calculate accuracy
+    accuracy = accuracy_score(y_test, y_pred)
     conf_matrix = confusion_matrix(y_test, y_pred, labels=np.unique(y))
-    
-    # Avoid UndefinedMetricWarning: handle zero division using zero_division=0
     class_report = classification_report(y_test, y_pred, labels=np.unique(y), zero_division=0)
 
     # Print results
@@ -138,7 +124,6 @@ def perform_ks_test(X, y):
     print("\nConfusion Matrix:\n", conf_matrix)
     print("\nAccuracy:", accuracy)  # Print the accuracy
     print("\nClassification Report:\n", class_report)
-
 
 def parse_arguments():
     # Initialize argument parser
@@ -167,7 +152,7 @@ def main():
     for directory in directories:
         # Loop through the file paths
         for file_path in os.listdir(directory):
-            print(f"File path: {file_path}")
+
             full_file_path = os.path.join(directory, file_path)
             
             # Read sessions from the binary file
@@ -187,21 +172,39 @@ def main():
     # Read in the csv file data to use with classifers
     X, y = read_csv_file("master_dict_output.csv")
 
-    # FEATURE SELECTION
+
+    # Perform feature selection
+    #X_selected, selected_features = feature_selection_with_threshold(X, y, p_value_threshold=0.05)
+    X_selected, selected_features = feature_selection(X, y, k=300)
+
+    # Print the shape of the reduced feature set
+    print("\nAfter feature selection:")
+    print(X_selected.shape)  
 
 
+    # Apply PCA to reduce dimensionality further
+    pca = PCA(n_components=0.8)  # Keep 80% of variance
+    X_pca = pca.fit_transform(X_selected)
+    # Print the shape after PCA
+    print(f"\nAfter PCA: {X_pca.shape}")  
+
+
+    """
+    Run the classifers after the feature selection
+
+    DOESN'T CURRENTLY USE PCA FOR FURTHER DIMENSIONALITY REDUCTION
+    """
     # Run Kolmogrov
-    perform_ks_test(X, y)
+    perform_ks_test(X_selected, y)
 
     # Perform KNN
-    perform_knn(X, y)
+    perform_knn(X_selected, y)
 
     # SVM
-    perform_svm(X, y)
+    perform_svm(X_selected, y)
 
     # Neural Net
-    perform_neural_net(X, y)
-
+    perform_neural_net(X_selected, y)
 
 
 if __name__ == "__main__":
