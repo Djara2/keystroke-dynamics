@@ -14,7 +14,11 @@ from tensorflow.keras.callbacks import EarlyStopping # type: ignore
 # Print TensorFlow version
 print(f"Using TensorFlow version: {tf.__version__}")
 
-def run_neural_net(X_scaled, y):
+def run_neural_net(X, y):
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
     # One-hot encode the labels using OneHotEncoder
     ohe = OneHotEncoder()
     y_encoded = ohe.fit_transform(y.values.reshape(-1, 1)).toarray()  # One-hot encode labels
